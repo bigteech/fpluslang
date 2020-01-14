@@ -92,12 +92,18 @@ let parseStatement (text:string) (index: int) =
     let token = getToken text index ignore
     match token with
         | VarToken x ->
+            let mutable indexTemp = index + 1
+            let nextToken = getToken text indexTemp (fun x -> indexTemp <- x)
+            match nextToken with
+                | DotToken ->
+                    ()
+                | PlusToken, MinToken with ->
+                    ()
             x
         | _ ->
             ""
 
 [<EntryPoint>]
 let main argv =
-    printfn "Hello World from F#!"
-    0 // return an integer exit code
+    0
 
