@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/weipengw/fc/fc.fsproj": {}
+  },
+  "projects": {
+    "/home/weipengw/fc/fc.fsproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/weipengw/fc/fc.fsproj",
+        "projectName": "fc",
+        "projectPath": "/home/weipengw/fc/fc.fsproj",
+        "packagesPath": "/home/weipengw/.nuget/packages/",
+        "outputPath": "/home/weipengw/fc/obj/",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "/home/weipengw/dotnet/sdk/NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "/home/weipengw/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp2.1"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp2.1": {
+            "projectReferences": {}
+          }
+        }
+      },
+      "frameworks": {
+        "netcoreapp2.1": {
+          "dependencies": {
+            "FSharp.Core": {
+              "target": "Package",
+              "version": "[4.6.2, )"
+            },
+            "Microsoft.NETCore.App": {
+              "target": "Package",
+              "version": "[2.1.0, )",
+              "autoReferenced": true
+            }
+          },
+          "imports": [
+            "net461"
+          ],
+          "assetTargetFallback": true,
+          "warn": true
+        }
+      }
+    }
+  }
+}

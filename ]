@@ -1,0 +1,32 @@
+﻿// Learn more about F# at http://fsharp.org
+
+open System
+
+type TokenType =
+    | String = 0
+    | Number = 1
+    | Plus = 2
+    | Min = 3
+    | If = 4
+    | Block = 5
+
+
+type Token =
+    | StringToken of string
+    | NumberToken of int
+    | BlockTokenStart
+
+
+let getToken (text:string) (index: int) (indexHandler: int -> unit) =
+    match text.[index] with
+        | '"' ->
+           TokenType.String, StringToken "", indexHandler 1
+        | '{' ->
+           TokenType.Block, BlockToken, indexHandler 10
+
+
+[<EntryPoint>]
+let main argv =
+    printfn "Hello World from F#!"
+    0 // return an integer exit code
+
