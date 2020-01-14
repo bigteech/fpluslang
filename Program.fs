@@ -89,6 +89,12 @@ module Lexical =
             | '\n' ->
                 getToken text (index+1) indexHandler
 
+module Grammer =
+    type Node = {
+        tokenType: Token
+        children: Node list
+    }
+
 let parseStatement (text:string) (index: int) =
     let token = Lexical.getToken text index ignore
     match token with
