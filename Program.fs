@@ -12,10 +12,21 @@ type Token =
     | BindToken
     | VarToken of string
     | DotToken
-    | PlusToken
-    | MinToken
+    | AddToken
+    | SubToken
     | MulToken
     | DiviToken
+    | SemiToken
+    | NewLineToken
+
+type Op =
+    | Add
+    | Sub
+    | Mul
+    | Get of string
+    | Set
+    | PushConst of string
+    | LoadConst of string
 
 module Lexical = 
     let isWordChar a =
@@ -74,10 +85,10 @@ module Lexical =
               DotToken
             | '+' ->
                 indexHandler (index+1)
-                PlusToken
+                AddToken
             | '-' ->
                 indexHandler (index+1)
-                MinToken
+                SubToken
             | '/' ->
                 indexHandler (index+1)
                 DiviToken
@@ -87,7 +98,11 @@ module Lexical =
             | ' ' ->
                 getToken text (index+1) indexHandler
             | '\n' ->
-                getToken text (index+1) indexHandler
+                indexHandler (index + 1)
+                NewLineToken
+            | ';' ->
+                indexHandler (index+1)
+                SemiToken
 
 module Grammer =
     type Node = {
@@ -103,12 +118,15 @@ let parseStatement (text:string) (index: int) =
             let nextToken = Lexical.getToken text indexTemp (fun x -> indexTemp <- x)
             match nextToken with
                 | DotToken ->
-                    ()
-                | PlusToken, MinToken with ->
-                    ()
-            x
+                    [Get x]
+                | AddToken ->
+                    [PushConst x;Add]
+                | SubToken ->
+                    [PushConst x;Sub]
+                | _ ->
+                    []
         | _ ->
-            ""
+            []
 
 [<EntryPoint>]
 let main argv =
