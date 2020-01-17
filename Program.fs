@@ -30,6 +30,15 @@ type Op =
     | PushConst of string
     | LoadConst of string
     | Assign
+    | EndExp
+    | Throw
+    | IfStart
+    | IfConditionStart
+    | IfConditionEnd
+    | IfElseConditionStart
+    | IfElseConditionEnd
+    | Else
+    | IfEnd
 
 module Lexical = 
     let isWordChar a =
@@ -37,8 +46,7 @@ module Lexical =
 
     let rec getWord (text:string) index =
         if isWordChar text.[index] then
-            getWord text (index + 1)
-        else
+            getWord text (index + 1) else
             index
 
     let rec getString (text: string ) index =
@@ -89,7 +97,7 @@ module Lexical =
             | '*' ->
                 MulToken,index+1
             | ' ' ->
-                getToken text (index+1) 
+                getToken text (index+1)
             | '\n' ->
                 NewLineToken,index+1
             | ';' ->
@@ -100,12 +108,18 @@ module Grammer =
         tokenType: Token
         children: Node list
     }
+let parseIfExperience (text:string) (index:int) =
 
+    IfStart :: [IfEnd]
 let parseExperience (text:string) (index: int) =
     let nextToken,indexTemp = Lexical.getToken text index
     match nextToken with
         | VarToken x ->
             []
+        | IfToken  ->
+            parseIfExperience text indexTemp
+        | SemiToken ->
+            [EndExp]
         | _ ->
             []
 
