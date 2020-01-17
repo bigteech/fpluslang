@@ -18,6 +18,8 @@ type Token =
     | DiviToken
     | SemiToken
     | NewLineToken
+    | AssignToken
+    
 
 type Op =
     | Add
@@ -27,6 +29,7 @@ type Op =
     | Set
     | PushConst of string
     | LoadConst of string
+    | Assign
 
 module Lexical = 
     let isWordChar a =
@@ -53,56 +56,44 @@ module Lexical =
           | _ ->
               VarToken(text), text.Length
 
-    let rec getToken (text:string) (index: int) (indexHandler: int -> unit) =
+    let rec getToken (text:string) (index: int) =
         match text.[index] with
             | a when (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') ->
               getWord text index
                 |> (fun x ->
-                    indexHandler x;
-                    StringToken text.[index..x]
+                    (StringToken text.[index..x]), (x+1)
                     )
                 |> (fun x ->
                     getKeyWord x
                     |> (fun (x,y) ->
-                        indexHandler y
-                        x
+                        x, y+1
                         )
                     )
             | '"' ->
                 getString text index
                 |> (fun x ->
-                    indexHandler x;
-                    StringToken text.[index..x]
+                    StringToken text.[index..x], x + 1
                     )
             | '{' ->
-              indexHandler (index+1)
-              BlockToken
+              BlockToken, index + 1
             | '(' ->
-              indexHandler (index+1)
-              ConditionToken
+              ConditionToken, index + 1
             | '.' ->
-              indexHandler (index + 1)
-              DotToken
+              DotToken, index+1
             | '+' ->
-                indexHandler (index+1)
-                AddToken
+                AddToken, index+1
             | '-' ->
-                indexHandler (index+1)
-                SubToken
+                SubToken,index+1
             | '/' ->
-                indexHandler (index+1)
-                DiviToken
+                DiviToken, index+1
             | '*' ->
-                indexHandler (index+1)
-                MulToken
+                MulToken,index+1
             | ' ' ->
-                getToken text (index+1) indexHandler
+                getToken text (index+1) 
             | '\n' ->
-                indexHandler (index + 1)
-                NewLineToken
+                NewLineToken,index+1
             | ';' ->
-                indexHandler (index+1)
-                SemiToken
+                SemiToken,index+1
 
 module Grammer =
     type Node = {
@@ -110,12 +101,19 @@ module Grammer =
         children: Node list
     }
 
+let parseExperience (text:string) (index: int) =
+    let nextToken,indexTemp = Lexical.getToken text index
+    match nextToken with
+        | VarToken x ->
+            []
+        | _ ->
+            []
+
 let parseStatement (text:string) (index: int) =
-    let token = Lexical.getToken text index ignore
+    let token,indexTemp = Lexical.getToken text index
     match token with
         | VarToken x ->
-            let mutable indexTemp = index + 1
-            let nextToken = Lexical.getToken text indexTemp (fun x -> indexTemp <- x)
+            let nextToken,indexTemp2 = Lexical.getToken text indexTemp
             match nextToken with
                 | DotToken ->
                     [Get x]
@@ -123,12 +121,15 @@ let parseStatement (text:string) (index: int) =
                     [PushConst x;Add]
                 | SubToken ->
                     [PushConst x;Sub]
+                | AssignToken ->
+                    parseExperience text indexTemp2
+
                 | _ ->
                     []
         | _ ->
             []
 
-[<EntryPoint>]
+[<ENTRYPOINT>]
 let main argv =
     0
 
