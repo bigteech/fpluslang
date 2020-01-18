@@ -72,13 +72,10 @@ module Lexical =
             | a when (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') ->
               getWord text index
                 |> (fun x ->
-                    (StringToken text.[index..x]), (x+1)
+                    getKeyWord text.[index..x]
                     )
-                |> (fun x ->
-                    getKeyWord x
-                    |> (fun (x,y) ->
-                        x, y+1
-                        )
+                |> (fun (x,y) ->
+                    x, y+1
                     )
             | '"' ->
                 getString text index
@@ -120,21 +117,23 @@ module rec Parser =
     let parseTunple text index =
         []
 
-    let parseParams text index =
-        let nextToken, indexTemp = Lexical.getToken text index
-        match nextToken with
-            | RightParentheses ->
-                []
-        []
 
     let parseGet text index=
         let nextToken, indexTemp = Lexical.getToken text index
         let nextToken2, indexTemp2 = Lexical.getToken text indexTemp
         match nextToken2 with
-            | LeftParentheses ->
-                parseTunple text indexTemp2
-            | VarToken x ->
-                parseParams text indexTemp2
+            | VarToken x->
+                [Get x], indexTemp2
+            | _ -> [Throw], indexTemp2
+
+
+    let parseParams text index =
+        let nextToken, indexTemp = Lexical.getToken text index
+        match nextToken with 
+            | AddToken ->
+                [Add]
+            | _ -> 
+                parseExperience text indexTemp
 
 
     let parseExperience (text:string) (index: int) =
@@ -142,20 +141,25 @@ module rec Parser =
         match nextToken with
             | VarToken x ->
                 let nextToken2,indexTemp2 = Lexical.getToken text indexTemp
-                [Load x]
+                match nextToken2 with
+                    | DotToken ->
+                        parseGet text indexTemp2
+                |> (fun (x,y) ->
+                    x @ parseParams text y
+                )
             | AddToken ->
-                Add
+                [Add]
             | SubToken ->
-                Sub
+                [Sub]
             | MulToken ->
-                Mul
+                [Mul]
             | DiviToken ->
-                Divi
+                [Divi]
             | IfToken  ->
                 parseIfExperience text indexTemp
             | SemiToken ->
                 [EndExp]
-[<ENTRYPOINT>]
+[<EntryPoint>]
 let main argv =
     0
 
