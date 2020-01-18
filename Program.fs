@@ -19,16 +19,20 @@ type Token =
     | SemiToken
     | NewLineToken
     | AssignToken
+    | LeftParentheses
+    | RightParentheses
     
 
 type Op =
     | Add
     | Sub
     | Mul
+    | Divi
     | Get of string
     | Set
     | PushConst of string
     | LoadConst of string
+    | Load of string 
     | Assign
     | EndExp
     | Throw
@@ -36,8 +40,7 @@ type Op =
     | IfConditionStart
     | IfConditionEnd
     | IfElseConditionStart
-    | IfElseConditionEnd
-    | Else
+    | IfElseConditionEnd | Else
     | IfEnd
 
 module Lexical = 
@@ -85,7 +88,7 @@ module Lexical =
             | '{' ->
               BlockToken, index + 1
             | '(' ->
-              ConditionToken, index + 1
+                LeftParentheses,index+1
             | '.' ->
               DotToken, index+1
             | '+' ->
@@ -108,41 +111,50 @@ module Grammer =
         tokenType: Token
         children: Node list
     }
-let parseIfExperience (text:string) (index:int) =
 
-    IfStart :: [IfEnd]
-let parseExperience (text:string) (index: int) =
-    let nextToken,indexTemp = Lexical.getToken text index
-    match nextToken with
-        | VarToken x ->
-            []
-        | IfToken  ->
-            parseIfExperience text indexTemp
-        | SemiToken ->
-            [EndExp]
-        | _ ->
-            []
+module rec Parser =
+    let parseIfExperience (text:string) (index:int) =
+        // Parser.parseExperience text index
+        IfStart :: [IfEnd]
 
-let parseStatement (text:string) (index: int) =
-    let token,indexTemp = Lexical.getToken text index
-    match token with
-        | VarToken x ->
-            let nextToken,indexTemp2 = Lexical.getToken text indexTemp
-            match nextToken with
-                | DotToken ->
-                    [Get x]
-                | AddToken ->
-                    [PushConst x;Add]
-                | SubToken ->
-                    [PushConst x;Sub]
-                | AssignToken ->
-                    parseExperience text indexTemp2
+    let parseTunple text index =
+        []
 
-                | _ ->
-                    []
-        | _ ->
-            []
+    let parseParams text index =
+        let nextToken, indexTemp = Lexical.getToken text index
+        match nextToken with
+            | RightParentheses ->
+                []
+        []
 
+    let parseGet text index=
+        let nextToken, indexTemp = Lexical.getToken text index
+        let nextToken2, indexTemp2 = Lexical.getToken text indexTemp
+        match nextToken2 with
+            | LeftParentheses ->
+                parseTunple text indexTemp2
+            | VarToken x ->
+                parseParams text indexTemp2
+
+
+    let parseExperience (text:string) (index: int) =
+        let nextToken,indexTemp = Lexical.getToken text index
+        match nextToken with
+            | VarToken x ->
+                let nextToken2,indexTemp2 = Lexical.getToken text indexTemp
+                [Load x]
+            | AddToken ->
+                Add
+            | SubToken ->
+                Sub
+            | MulToken ->
+                Mul
+            | DiviToken ->
+                Divi
+            | IfToken  ->
+                parseIfExperience text indexTemp
+            | SemiToken ->
+                [EndExp]
 [<ENTRYPOINT>]
 let main argv =
     0
