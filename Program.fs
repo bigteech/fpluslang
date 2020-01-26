@@ -41,6 +41,7 @@ type Op =
     | IfElseConditionStart
     | IfElseConditionEnd | Else
     | IfEnd
+    | Nop
 
 let getLevelByToken token =
     match token with 
@@ -135,6 +136,9 @@ module Lexical =
               | '(' ->
                   moveNextDefault()
                   parseState.pushToken LeftParentheses
+              | ')' ->
+                  moveNextDefault()
+                  parseState.pushToken RightParentheses
               | '.' ->
                   moveNextDefault()
                   parseState.pushToken DotToken
@@ -185,40 +189,59 @@ module rec Parser =
     let parseUnary parseState =
         ()
 
-
-    let parseExperienceBinary parseState  =
+    let parseExperienceBinary2 parseState =
         let nextToken () = Lexical.nextToken parseState
-        parseState.pushOp (LoadConst (getCharByToken (nextToken()) ))
+        let nt = nextToken()
+        match nt with
+            | LeftParentheses -> 
+                parseExperienceBinary parseState (nextToken()) 
+            | _ -> 
+                parseExperienceBinary parseState  nt
+                
+
+    let parseExperienceBinary parseState startToken  =
+        let nextToken () = Lexical.nextToken parseState
+        parseState.pushOp (LoadConst (getCharByToken (startToken) ))
 
         let rec temp token =
             match token with
+                | SemiToken ->
+                    SemiToken
                 | MulToken | AddToken | DiviToken | SubToken->
                     let tokenNext1 = nextToken()
-                    let tokenNext = nextToken()
-                    if tokenNext = SemiToken then
-                        parseState.pushOp (LoadConst (getCharByToken tokenNext1))
-                        parseState.pushOp (getOpByToken token)
-                        SemiToken
+                    if tokenNext1 = LeftParentheses then
+                        parseExperienceBinary2 parseState
                     else
-                        let level1 = getLevelByToken token
-                        let level2= getLevelByToken tokenNext
-                        if level2 >= level1 then // 比自己大，算自己
+                        let tokenNext = nextToken()
+                        if tokenNext = SemiToken then
                             parseState.pushOp (LoadConst (getCharByToken tokenNext1))
                             parseState.pushOp (getOpByToken token)
-                            temp tokenNext
-                        else // 比自己小，优先级高
+                            tokenNext
+                        elif tokenNext = RightParentheses then
                             parseState.pushOp (LoadConst (getCharByToken tokenNext1))
-                            let nextNextToken = temp tokenNext
                             parseState.pushOp (getOpByToken token)
-                            match nextNextToken with
-                                | SemiToken -> SemiToken
-                                | _ -> temp nextNextToken
+                            temp (nextToken())
+                        else
+                            let level1 = getLevelByToken token
+                            let level2= getLevelByToken tokenNext
+                            if level2 >= level1 then // 比自己大，算自己
+                                parseState.pushOp (LoadConst (getCharByToken tokenNext1))
+                                parseState.pushOp (getOpByToken token)
+                                temp tokenNext
+                            else // 比自己小，优先级高
+                                parseState.pushOp (LoadConst (getCharByToken tokenNext1))
+                                let nextNextToken = temp tokenNext
+                                parseState.pushOp (getOpByToken token)
+                                match nextNextToken with
+                                    | SemiToken -> SemiToken
+                                    | RightParentheses -> RightParentheses
+                                    | _ -> temp nextNextToken
                             
 
-        temp (nextToken()) |> ignore
+        temp (nextToken())
 
     let parseExperience  parseState =
-        parseExperienceBinary parseState
+        parseExperienceBinary2 parseState
 
     let parseSourceElement text =
          let parseState = {text=text;index=0;op=[];token=[]}
@@ -245,13 +268,14 @@ module Vm =
                     0
         for x in oplst do
             eval x |> ignore
-        printf "%s" (stack.Pop().ToString())
+        sprintf "%s" (stack.Pop().ToString())
 
 
 [<EntryPoint>]
 let main argv =
-   Parser.parseSourceElement "3 + 14 + 2 + 6 + 19;"
-   |> Vm.evalOplist
-   |> ignore
+   assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14) * 2;")) = ((3 + 14) * 2).ToString())
+   assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2;")) = (3 + 14 * 2).ToString())
+   assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14 * 2);")) = ((3 + 14 * 2)).ToString())
+   printf "%s" "success"
    0
 
