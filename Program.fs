@@ -250,7 +250,7 @@ module Vm =
 
 [<EntryPoint>]
 let main argv =
-   Parser.parseSourceElement "3 + 14 + 2 + 6 * 1 + 1;"
+   Parser.parseSourceElement "3 + 14 + 2 + 6 + 19;"
    |> Vm.evalOplist
    |> ignore
    0
