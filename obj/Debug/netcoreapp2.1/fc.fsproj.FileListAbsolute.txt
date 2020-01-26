@@ -1,8 +1,0 @@
-/home/weipengw/fc/bin/Debug/netcoreapp2.1/fc.deps.json
-/home/weipengw/fc/bin/Debug/netcoreapp2.1/fc.runtimeconfig.json
-/home/weipengw/fc/bin/Debug/netcoreapp2.1/fc.runtimeconfig.dev.json
-/home/weipengw/fc/bin/Debug/netcoreapp2.1/fc.dll
-/home/weipengw/fc/bin/Debug/netcoreapp2.1/fc.pdb
-/home/weipengw/fc/obj/Debug/netcoreapp2.1/fc.fsprojAssemblyReference.cache
-/home/weipengw/fc/obj/Debug/netcoreapp2.1/fc.dll
-/home/weipengw/fc/obj/Debug/netcoreapp2.1/fc.pdb
