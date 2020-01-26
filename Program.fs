@@ -194,7 +194,7 @@ module rec Parser =
         let nt = nextToken()
         match nt with
             | LeftParentheses -> 
-                parseExperienceBinary parseState (nextToken()) 
+                parseExperienceBinary2 parseState 
             | _ -> 
                 parseExperienceBinary parseState  nt
                 
@@ -205,6 +205,8 @@ module rec Parser =
 
         let rec temp token =
             match token with
+                | RightParentheses ->
+                    temp (nextToken())
                 | SemiToken ->
                     SemiToken
                 | MulToken | AddToken | DiviToken | SubToken->
@@ -276,6 +278,8 @@ let main argv =
    assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14) * 2;")) = ((3 + 14) * 2).ToString())
    assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2;")) = (3 + 14 * 2).ToString())
    assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14 * 2);")) = ((3 + 14 * 2)).ToString())
+   assert ((Vm.evalOplist (Parser.parseSourceElement "((3 + 14)) * 2;")) = ((3 + 14) * 2).ToString())
+
    printf "%s" "success"
    0
 
