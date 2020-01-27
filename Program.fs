@@ -42,6 +42,7 @@ type Op =
     | Get of string
     | Set
     | LoadConst of IMfsObject
+    | LoadVar of string
     | Load of string 
     | Assign
     | EndExp
@@ -49,6 +50,7 @@ type Op =
     | Nop
     | JumpIfFalse of int
     | Jump of int
+    | Store of String
 
 
 
@@ -91,6 +93,7 @@ type FunctionObject() =
 
     member this.Call(args: IMfsObject list) = 
         let stack = Collections.Stack()
+        let mutable scope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
         let mutable index = 0
         let eval op =
             match op with
@@ -115,6 +118,12 @@ type FunctionObject() =
                         1
                 | Jump x ->
                     x
+                | Store x ->
+                    scope.Add(x, (stack.Pop() :?> IMfsObject))
+                    1
+                | LoadVar x ->
+                    stack.Push (scope.Item(x))
+                    1
                 | Mul ->
                     let l1 = stack.Pop() :?> IMfsObject
                     let l2 = stack.Pop() :?> IMfsObject
@@ -171,7 +180,7 @@ type ParseState with
 
 module Lexical = 
     let isWordChar a =
-        (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') || a = '_' || a = '-'
+        (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || a = '_' || a = '-' || a = '$'
 
     let rec getWord (text:string) index =
         if isWordChar text.[index] then
@@ -208,7 +217,7 @@ module Lexical =
             Eof, 0
         else
             match text.[index] with
-                  | a when (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') ->
+                  | a when (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || a = '_' || a = '$' ->
                     getWord text index
                       |> (fun x ->
                           let m,n =getKeyWord text.[index..x-1]
@@ -237,6 +246,8 @@ module Lexical =
                       DotToken, (index+1)
                   | '+' ->
                       AddToken, (index+1)
+                  | '=' ->
+                      AssignToken, (index+1)
                   | '-' ->
                       SubToken, (index+1)
                   | '/' ->
@@ -251,6 +262,8 @@ module Lexical =
                       nextToken parseState (index+1)
                   | ';' ->
                       SemiToken, (index+1)
+                  | _ ->
+                      Eof, 0
 
     let initToken parseState =
         let rec temp index =
@@ -270,12 +283,14 @@ module Grammer =
         children: Node list
     }
 
-let getObjectByToken token: IMfsObject = 
+let getObjectByToken token: Op list = 
     match token with
         |  NumberToken x -> 
-            upcast NumberObject(x)
+            [LoadConst (NumberObject(x))]
         | StringToken x ->
-            upcast StringObject(x)
+            [LoadConst (StringObject(x))]
+        | IdenToken x ->
+            [LoadVar x]
         
 
 let getOpByToken token = 
@@ -288,6 +303,17 @@ module rec Parser =
  
     let parseGetOrCallOrNumber parseState =
         ()
+    let parseBindStatement (parseState: ParseState) =
+        parseState.moveNext() |> ignore
+        match parseState.moveNext() with
+            | IdenToken name ->
+                match parseState.moveNext() with
+                    | AssignToken ->
+                        (parseExperienceBinary parseState 10 (fun () -> [])) @ [Store name]
+                    | _ ->
+                        raise (Exception("let需要="))
+            | _ ->
+                raise (Exception("let需要名称"))
     let parseIfStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
         let ops = parseExperienceBinary parseState 10 (fun () -> [])
@@ -296,23 +322,22 @@ module rec Parser =
                 ()
             | _ ->
                 raise (Exception("if需要代码块"))
-        let opsBlock = (parseExperienceBinary parseState 10 (fun () -> []))
-        match parseState.currentToken with
+        let opsBlock = parseStatement parseState
+        match parseState.moveNext() with
             | RightBraceToken ->
                 ()
             | _ ->
                 raise (Exception("if代码块需要闭合"))
-        match parseState.nextToken() with
+        match parseState.moveNext() with
                 | ElseToken ->
-                    parseState.moveNext() |> ignore
                     parseState.moveNext() |> ignore
                     match parseState.currentToken with
                         | LeftBraceToken ->
                             ()
                         | _ ->
                             raise (Exception("else需要代码块"))
-                    let opsElseBlock = parseExperienceBinary parseState 10 (fun () -> [])
-                    match parseState.currentToken with
+                    let opsElseBlock = parseStatement parseState
+                    match parseState.moveNext() with
                         | RightBraceToken ->
                             ()
                         | _ ->
@@ -339,8 +364,6 @@ module rec Parser =
                 let ops2 = parseExperienceBinary2 parseState
                 let op = parseState.moveNext()
                 if op = SemiToken || op = RightParentheses || op = LeftParentheses then
-                    if op = SemiToken then
-                        parseState.moveNext() |> ignore
                     ops 
                     @ ops2
                     @ (f1())
@@ -360,26 +383,24 @@ module rec Parser =
                         @ (f1())
             | SemiToken ->
                 []
-            | NumberToken _ | StringToken _ ->
+            | NumberToken _ | StringToken _ | IdenToken _ ->
                 let op = parseState.moveNext()
                 if op = SemiToken || op = RightParentheses || op = LeftBraceToken then
-                    if op = SemiToken then
-                        parseState.moveNext() |> ignore
                     ops 
-                    @ [LoadConst (getObjectByToken token)]
+                    @ (getObjectByToken token)
                     @ (f1())
                 else
                     let level1 = getLevelByToken op
                     if level1 > level then
                         ops 
-                         @ [LoadConst (getObjectByToken token)]
+                         @ (getObjectByToken token)
                          @ (f1())
                          @ (parseExperienceBinary parseState 10 (fun () -> []))
                          @ [getOpByToken op]
                     else
                         ops 
                         @ (parseExperienceBinary parseState level1 (fun () -> 
-                                [LoadConst (getObjectByToken token); getOpByToken op]
+                                (getObjectByToken token) @ [getOpByToken op]
                             ))
                         @ (f1())
             | _ -> 
@@ -389,22 +410,23 @@ module rec Parser =
         parseExperienceBinary parseState 10 (fun () -> [])
         
 
-    let parseStatement (parseState: ParseState) = 
+    let parseStatement (parseState: ParseState): Op list = 
         match parseState.nextToken() with
-            | Eof ->
-                ()
+            | Eof | RightBraceToken ->
+                []
             | IfToken ->
-                parseState.pushOps (parseIfStatement parseState)
-                parseStatement parseState
+                (parseIfStatement parseState) @ (parseStatement parseState)
+            | BindToken ->
+                (parseBindStatement parseState) @ (parseStatement parseState)
             | _  -> 
-                parseState.pushOps (parseExperience parseState)
-                parseStatement parseState
+                (parseExperience parseState) @ (parseStatement parseState)
 
 
     let parseSourceElement text =
          let parseState = {text=text;index=(-1);op=[];token=[]}
          Lexical.initToken parseState
-         parseStatement  parseState |> ignore
+         let ops = parseStatement parseState
+         parseState.pushOps ops
          parseState.op
 
 module Vm = 
