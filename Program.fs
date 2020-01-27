@@ -57,10 +57,13 @@ type ParseState = {
 }
 
 type ParseState with 
-    member z.getLastToken()=z.token.[z.token.Length - 1]
-    member z.moveNextDefault()=z.index <- z.index + 1
-    member z.moveNext x =z.index <- z.index + x
+    member z.moveNext()=
+        z.index <- z.index + 1
+        z.currentToken
+    member z.nextToken()=z.token.[z.index+1]
+    member z.currentToken with get() = z.token.[z.index]
     member z.pushOp x = z.op <- z.op @ [x] 
+    member z.pushOps x = z.op <- z.op @ x
     member z.pushToken x = z.token <-  z.token @ [x]
 
 
@@ -96,77 +99,59 @@ module Lexical =
 
     let opLevelMap = {| Add = 2; Mul = 1 |}
 
-    let rec nextToken (parseState) : Token=
+    let rec nextToken (parseState) index : Token*int=
         let text = parseState.text
-        let index = parseState.index
-
-        let moveNext x = 
-            parseState.moveNext x
-
-        let moveNextDefault () = 
-            parseState.moveNextDefault()
-
+        
         match text.[index] with
               | a when (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') ->
                 getWord text index
                   |> (fun x ->
                       getKeyWord text.[index..x]
                       )
-                  |> (fun (x,y) ->
-                      moveNext (y-index)
-                      parseState.pushToken x
-                      )
               | a when Char.IsNumber a-> 
                   getNumber text index
                   |> (fun x ->
-                      moveNext (x-index)
                       let t = text.[index..x-1]
-                      parseState.pushToken (NumberToken (Int32.Parse t))
+                      (NumberToken (Int32.Parse t)), x
                       )
               | '"' ->
                   getString text index
                   |> (fun x ->
-                      moveNext(x)
-                      parseState.pushToken (StringToken text.[index..x])
+                      (StringToken text.[index..x]), x
                       )
               | '{' ->
-                  moveNextDefault()
-                  parseState.pushToken BlockToken
+                  BlockToken, (index+1)
 
               | '(' ->
-                  moveNextDefault()
-                  parseState.pushToken LeftParentheses
+                  LeftParentheses, (index+1)
               | ')' ->
-                  moveNextDefault()
-                  parseState.pushToken RightParentheses
+                  RightParentheses, (index+1)
               | '.' ->
-                  moveNextDefault()
-                  parseState.pushToken DotToken
+                  DotToken, (index+1)
               | '+' ->
-                  moveNextDefault()
-                  parseState.pushToken AddToken
+                  AddToken, (index+1)
               | '-' ->
-                  moveNextDefault()
-                  parseState.pushToken SubToken
+                  SubToken, (index+1)
               | '/' ->
-                  moveNextDefault()
-                  parseState.pushToken DiviToken
+                  DiviToken, (index+1)
 
               | '*' ->
-                  moveNextDefault()
-                  parseState.pushToken MulToken
+                  MulToken, (index+1)
 
               | ' ' ->
-                  moveNextDefault() 
-                  nextToken parseState |> ignore
+                  nextToken parseState (index+1)
               | '\n' ->
-                  moveNextDefault()
-                  parseState.pushToken NewLineToken
+                  NewLineToken, (index+1)
               | ';' ->
-                  moveNextDefault()
-                  parseState.pushToken SemiToken
+                  SemiToken, (index+1)
 
-        parseState.getLastToken()
+    let initToken parseState =
+        let rec temp index =
+            if index < parseState.text.Length then
+                let t, i = nextToken parseState index
+                parseState.pushToken t
+                temp i
+        temp 0
     
 module Grammer =
     type Node = {
@@ -186,68 +171,76 @@ let getOpByToken token =
         
 
 module rec Parser =
-    let parseUnary parseState =
+ 
+    let parseGetOrCallOrNumber parseState =
         ()
 
-    let parseExperienceBinary2 parseState =
-        let nextToken () = Lexical.nextToken parseState
-        let nt = nextToken()
-        match nt with
-            | LeftParentheses -> 
-                parseExperienceBinary2 parseState 
-            | _ -> 
-                parseExperienceBinary parseState  nt
-                
+    let parseExperienceBinary2 (parseState: ParseState) =
+        let ops = parseExperienceBinary parseState 10 (fun () -> [])
+        match parseState.currentToken with
+            | RightParentheses ->
+                ()
+            | _ ->
+                raise (Exception("括号需要闭合"))
+        ops
 
-    let parseExperienceBinary parseState startToken  =
-        let nextToken () = Lexical.nextToken parseState
-        parseState.pushOp (LoadConst (getCharByToken (startToken) ))
-
-        let rec temp token =
-            match token with
-                | RightParentheses ->
-                    temp (nextToken())
-                | SemiToken ->
-                    SemiToken
-                | MulToken | AddToken | DiviToken | SubToken->
-                    let tokenNext1 = nextToken()
-                    if tokenNext1 = LeftParentheses then
-                        parseExperienceBinary2 parseState
+    let parseExperienceBinary (parseState: ParseState)  level (f1: unit -> Op list) : Op list =
+        let token = parseState.moveNext()
+        let ops = []
+        match token with
+            | LeftParentheses ->
+                let ops2 = parseExperienceBinary2 parseState
+                let op = parseState.moveNext()
+                if op = SemiToken || op = RightParentheses then
+                    ops 
+                    @ ops2
+                    @ (f1())
+                else
+                    let level1 = getLevelByToken op
+                    if level1 > level then
+                        ops 
+                         @ ops2
+                         @ (f1())
+                         @ (parseExperienceBinary parseState 10 (fun () -> []))
+                         @ [getOpByToken op]
                     else
-                        let tokenNext = nextToken()
-                        if tokenNext = SemiToken then
-                            parseState.pushOp (LoadConst (getCharByToken tokenNext1))
-                            parseState.pushOp (getOpByToken token)
-                            tokenNext
-                        elif tokenNext = RightParentheses then
-                            parseState.pushOp (LoadConst (getCharByToken tokenNext1))
-                            parseState.pushOp (getOpByToken token)
-                            temp (nextToken())
-                        else
-                            let level1 = getLevelByToken token
-                            let level2= getLevelByToken tokenNext
-                            if level2 >= level1 then // 比自己大，算自己
-                                parseState.pushOp (LoadConst (getCharByToken tokenNext1))
-                                parseState.pushOp (getOpByToken token)
-                                temp tokenNext
-                            else // 比自己小，优先级高
-                                parseState.pushOp (LoadConst (getCharByToken tokenNext1))
-                                let nextNextToken = temp tokenNext
-                                parseState.pushOp (getOpByToken token)
-                                match nextNextToken with
-                                    | SemiToken -> SemiToken
-                                    | RightParentheses -> RightParentheses
-                                    | _ -> temp nextNextToken
-                            
-
-        temp (nextToken())
+                        ops 
+                        @ (parseExperienceBinary parseState level1 (fun () -> 
+                                ops2 @ [getOpByToken op]
+                            ))
+                        @ (f1())
+            | SemiToken ->
+                []
+            | NumberToken x ->
+                let op = parseState.moveNext()
+                if op = SemiToken || op = RightParentheses then
+                    ops 
+                    @ [LoadConst (getCharByToken token)]
+                    @ (f1())
+                else
+                    let level1 = getLevelByToken op
+                    if level1 > level then
+                        ops 
+                         @ [LoadConst (getCharByToken token)]
+                         @ (f1())
+                         @ (parseExperienceBinary parseState 10 (fun () -> []))
+                         @ [getOpByToken op]
+                    else
+                        ops 
+                        @ (parseExperienceBinary parseState level1 (fun () -> 
+                                [LoadConst (getCharByToken token); getOpByToken op]
+                            ))
+                        @ (f1())
+                        
 
     let parseExperience  parseState =
-        parseExperienceBinary2 parseState
+        let ops = parseExperienceBinary parseState 10 (fun () -> [])
+        parseState.pushOps ops
 
     let parseSourceElement text =
-         let parseState = {text=text;index=0;op=[];token=[]}
-         parseExperience  parseState
+         let parseState = {text=text;index=(-1);op=[];token=[]}
+         Lexical.initToken parseState
+         parseExperience  parseState |> ignore
          parseState.op
 
 module Vm = 
@@ -275,7 +268,7 @@ module Vm =
 
 [<EntryPoint>]
 let main argv =
-   assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14) * 2;")) = ((3 + 14) * 2).ToString())
+   assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2 + 1;")) = (3 + 14 * 2 + 1).ToString())
    assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2;")) = (3 + 14 * 2).ToString())
    assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14 * 2);")) = ((3 + 14 * 2)).ToString())
    assert ((Vm.evalOplist (Parser.parseSourceElement "((3 + 14)) * 2;")) = ((3 + 14) * 2).ToString())
