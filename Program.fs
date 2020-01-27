@@ -414,13 +414,7 @@ module Vm =
 
 [<EntryPoint>]
 let main argv =
-   let ops = Parser.parseSourceElement """
-        if 1 {
-            1 + 1 * 2;
-        } else {
-            (2 + 2) * 3;
-        }
-   """
+   let ops = Parser.parseSourceElement (String.Join("", IO.File.ReadLines("./test.mfs")))
    let f = FunctionObject()
    f.PushToOpList ops
    let ret = (Vm.eval f) :?> IMfsObject
