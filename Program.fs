@@ -7,6 +7,7 @@ type Token =
     | LeftBraceToken
     | RightBraceToken
     | IfToken
+    | ElseToken
     | BindToken
     | IdenToken of string
     | DotToken
@@ -36,6 +37,7 @@ type Op =
     | Throw
     | Nop
     | JumpIfFalse of int
+    | Jump of int
 
 let getLevelByToken token =
     match token with 
@@ -93,6 +95,8 @@ module Lexical =
         match text with
           | "if" ->
               IfToken, 2
+          | "else" ->
+              ElseToken, 4
           | "let" ->
               BindToken, 3
           | _ ->
@@ -197,7 +201,25 @@ module rec Parser =
                 ()
             | _ ->
                 raise (Exception("if代码块需要闭合"))
-        ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
+        match parseState.nextToken() with
+                | ElseToken ->
+                    parseState.moveNext() |> ignore
+                    parseState.moveNext() |> ignore
+                    match parseState.currentToken with
+                        | LeftBraceToken ->
+                            ()
+                        | _ ->
+                            raise (Exception("else需要代码块"))
+                    let opsElseBlock = parseExperienceBinary parseState 10 (fun () -> [])
+                    match parseState.currentToken with
+                        | RightBraceToken ->
+                            ()
+                        | _ ->
+                            raise (Exception("if代码块需要闭合"))
+                    ops @ [JumpIfFalse (opsBlock.Length + 2)] @ opsBlock @ [Jump (opsElseBlock.Length + 1)] @ opsElseBlock
+                | _ ->
+                    ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
+
 
     let parseExperienceBinary2 (parseState: ParseState) =
         let ops = parseExperienceBinary parseState 10 (fun () -> [])
@@ -259,7 +281,8 @@ module rec Parser =
                                 [LoadConst (getCharByToken token); getOpByToken op]
                             ))
                         @ (f1())
-                        
+            | _ -> 
+                []        
 
     let parseExperience  parseState =
         parseExperienceBinary parseState 10 (fun () -> [])
@@ -303,6 +326,8 @@ module Vm =
                         x
                     else
                         1
+                | Jump x ->
+                    x
                 | Mul ->
                     let l1 = Int32.Parse(stack.Pop().ToString())
                     let l2 = Int32.Parse(stack.Pop().ToString())
@@ -321,10 +346,11 @@ let main argv =
 //    assert ((Vm.evalOplist (Parser.parseSourceElement "((3 + 14)) * 2;")) = ((3 + 14) * 2).ToString())
    assert ((Vm.evalOplist (Parser.parseSourceElement """
         if 1 {
-            1 + 1;
+            1 + 1 * 2;
+        } else {
+            (2 + 2) * 3;
         }
-        2 + 2;
-   """)) = (4).ToString())
+   """)) = (3).ToString())
    printf "%s" "success"
    0
 
