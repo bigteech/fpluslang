@@ -4,9 +4,8 @@ open System
 type Token =
     | StringToken of string
     | NumberToken of int
-    | BlockToken
-    | ConditionToken
-    | Statement
+    | LeftBraceToken
+    | RightBraceToken
     | IfToken
     | BindToken
     | IdenToken of string
@@ -16,10 +15,10 @@ type Token =
     | MulToken
     | DiviToken
     | SemiToken
-    | NewLineToken
     | AssignToken
     | LeftParentheses
     | RightParentheses
+    | Eof
     
 
 type Op =
@@ -35,13 +34,8 @@ type Op =
     | Assign
     | EndExp
     | Throw
-    | IfStart
-    | IfConditionStart
-    | IfConditionEnd
-    | IfElseConditionStart
-    | IfElseConditionEnd | Else
-    | IfEnd
     | Nop
+    | JumpIfFalse of int
 
 let getLevelByToken token =
     match token with 
@@ -58,9 +52,16 @@ type ParseState = {
 
 type ParseState with 
     member z.moveNext()=
-        z.index <- z.index + 1
-        z.currentToken
-    member z.nextToken()=z.token.[z.index+1]
+        if z.index = (z.token.Length - 1)then
+            Eof
+        else
+            z.index <- z.index + 1
+            z.currentToken
+    member z.nextToken()=
+            if z.index = (z.token.Length - 1) then
+              Eof
+            else
+              z.token.[z.index+1]
     member z.currentToken with get() = z.token.[z.index]
     member z.pushOp x = z.op <- z.op @ [x] 
     member z.pushOps x = z.op <- z.op @ x
@@ -101,56 +102,64 @@ module Lexical =
 
     let rec nextToken (parseState) index : Token*int=
         let text = parseState.text
-        
-        match text.[index] with
-              | a when (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') ->
-                getWord text index
-                  |> (fun x ->
-                      getKeyWord text.[index..x]
-                      )
-              | a when Char.IsNumber a-> 
-                  getNumber text index
-                  |> (fun x ->
-                      let t = text.[index..x-1]
-                      (NumberToken (Int32.Parse t)), x
-                      )
-              | '"' ->
-                  getString text index
-                  |> (fun x ->
-                      (StringToken text.[index..x]), x
-                      )
-              | '{' ->
-                  BlockToken, (index+1)
-
-              | '(' ->
-                  LeftParentheses, (index+1)
-              | ')' ->
-                  RightParentheses, (index+1)
-              | '.' ->
-                  DotToken, (index+1)
-              | '+' ->
-                  AddToken, (index+1)
-              | '-' ->
-                  SubToken, (index+1)
-              | '/' ->
-                  DiviToken, (index+1)
-
-              | '*' ->
-                  MulToken, (index+1)
-
-              | ' ' ->
-                  nextToken parseState (index+1)
-              | '\n' ->
-                  NewLineToken, (index+1)
-              | ';' ->
-                  SemiToken, (index+1)
+        if index = text.Length then
+            Eof, 0
+        else
+            match text.[index] with
+                  | a when (a > 'a' && a < 'z') || (a > 'A' && a < 'Z') ->
+                    getWord text index
+                      |> (fun x ->
+                          let m,n =getKeyWord text.[index..x-1]
+                          m, (index+n)
+                          )
+                  | a when Char.IsNumber a-> 
+                      getNumber text index
+                      |> (fun x ->
+                          let t = text.[index..x-1]
+                          (NumberToken (Int32.Parse t)), x
+                          )
+                  | '"' ->
+                      getString text index
+                      |> (fun x ->
+                          (StringToken text.[index..x-1]), x
+                          )
+                  | '{' ->
+                      LeftBraceToken, (index+1)
+                  | '}' ->
+                      RightBraceToken, (index+1)
+                  | '(' ->
+                      LeftParentheses, (index+1)
+                  | ')' ->
+                      RightParentheses, (index+1)
+                  | '.' ->
+                      DotToken, (index+1)
+                  | '+' ->
+                      AddToken, (index+1)
+                  | '-' ->
+                      SubToken, (index+1)
+                  | '/' ->
+                      DiviToken, (index+1)
+                  | '*' ->
+                      MulToken, (index+1)
+                  | ' ' ->
+                      nextToken parseState (index+1)
+                  | '\n' ->
+                      nextToken parseState (index+1)
+                  | '\r' ->
+                      nextToken parseState (index+1)
+                  | ';' ->
+                      SemiToken, (index+1)
 
     let initToken parseState =
         let rec temp index =
             if index < parseState.text.Length then
                 let t, i = nextToken parseState index
-                parseState.pushToken t
-                temp i
+                match t with
+                    | Eof ->
+                        ()
+                    | _ ->
+                        parseState.pushToken t
+                        temp i
         temp 0
     
 module Grammer =
@@ -174,6 +183,21 @@ module rec Parser =
  
     let parseGetOrCallOrNumber parseState =
         ()
+    let parseIfStatement (parseState: ParseState) =
+        parseState.moveNext() |> ignore
+        let ops = parseExperienceBinary parseState 10 (fun () -> [])
+        match parseState.currentToken with
+            | LeftBraceToken ->
+                ()
+            | _ ->
+                raise (Exception("if需要代码块"))
+        let opsBlock = (parseExperienceBinary parseState 10 (fun () -> []))
+        match parseState.currentToken with
+            | RightBraceToken ->
+                ()
+            | _ ->
+                raise (Exception("if代码块需要闭合"))
+        ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
 
     let parseExperienceBinary2 (parseState: ParseState) =
         let ops = parseExperienceBinary parseState 10 (fun () -> [])
@@ -191,7 +215,9 @@ module rec Parser =
             | LeftParentheses ->
                 let ops2 = parseExperienceBinary2 parseState
                 let op = parseState.moveNext()
-                if op = SemiToken || op = RightParentheses then
+                if op = SemiToken || op = RightParentheses || op = LeftParentheses then
+                    if op = SemiToken then
+                        parseState.moveNext() |> ignore
                     ops 
                     @ ops2
                     @ (f1())
@@ -213,7 +239,9 @@ module rec Parser =
                 []
             | NumberToken x ->
                 let op = parseState.moveNext()
-                if op = SemiToken || op = RightParentheses then
+                if op = SemiToken || op = RightParentheses || op = LeftBraceToken then
+                    if op = SemiToken then
+                        parseState.moveNext() |> ignore
                     ops 
                     @ [LoadConst (getCharByToken token)]
                     @ (f1())
@@ -234,45 +262,69 @@ module rec Parser =
                         
 
     let parseExperience  parseState =
-        let ops = parseExperienceBinary parseState 10 (fun () -> [])
-        parseState.pushOps ops
+        parseExperienceBinary parseState 10 (fun () -> [])
+        
+
+    let parseStatement (parseState: ParseState) = 
+        match parseState.nextToken() with
+            | Eof ->
+                ()
+            | IfToken ->
+                parseState.pushOps (parseIfStatement parseState)
+                parseStatement parseState
+            | _  -> 
+                parseState.pushOps (parseExperience parseState)
+                parseStatement parseState
+
 
     let parseSourceElement text =
          let parseState = {text=text;index=(-1);op=[];token=[]}
          Lexical.initToken parseState
-         parseExperience  parseState |> ignore
+         parseStatement  parseState |> ignore
          parseState.op
 
 module Vm = 
-    let evalOplist oplst =
+    let evalOplist (oplst: Op list) =
         let stack = Collections.Stack()
+        let mutable index = 0
         let eval op =
             match op with
                 | LoadConst x ->
                     stack.Push x
-                    0
+                    1
                 | Add ->
                     let l1 = Int32.Parse(stack.Pop().ToString())
                     let l2 = Int32.Parse(stack.Pop().ToString())
                     stack.Push (l1 + l2)
-                    0
+                    1
+                | JumpIfFalse x ->
+                    let l1 = Int32.Parse(stack.Pop().ToString())
+                    if l1 = 0 then
+                        x
+                    else
+                        1
                 | Mul ->
                     let l1 = Int32.Parse(stack.Pop().ToString())
                     let l2 = Int32.Parse(stack.Pop().ToString())
                     stack.Push (l1 * l2)
-                    0
-        for x in oplst do
-            eval x |> ignore
+                    1
+        while index < oplst.Length do
+            index <- index + (eval (oplst.[index]))
         sprintf "%s" (stack.Pop().ToString())
 
 
 [<EntryPoint>]
 let main argv =
-   assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2 + 1;")) = (3 + 14 * 2 + 1).ToString())
-   assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2;")) = (3 + 14 * 2).ToString())
-   assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14 * 2);")) = ((3 + 14 * 2)).ToString())
-   assert ((Vm.evalOplist (Parser.parseSourceElement "((3 + 14)) * 2;")) = ((3 + 14) * 2).ToString())
-
+//    assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2 + 1;")) = (3 + 14 * 2 + 1).ToString())
+//    assert ((Vm.evalOplist (Parser.parseSourceElement "3 + 14 * 2;")) = (3 + 14 * 2).ToString())
+//    assert ((Vm.evalOplist (Parser.parseSourceElement "(3 + 14 * 2);")) = ((3 + 14 * 2)).ToString())
+//    assert ((Vm.evalOplist (Parser.parseSourceElement "((3 + 14)) * 2;")) = ((3 + 14) * 2).ToString())
+   assert ((Vm.evalOplist (Parser.parseSourceElement """
+        if 1 {
+            1 + 1;
+        }
+        2 + 2;
+   """)) = (4).ToString())
    printf "%s" "success"
    0
 
