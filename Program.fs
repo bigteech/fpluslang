@@ -81,7 +81,7 @@ type StringObject(p: string) =
         StringObject(p1.Value + p2.Value)
     
     member this.Value with get() = p
-    member this.ToString() = p.ToString()
+    override this.ToString() = p.ToString()
     interface IMfsObject with 
         member this.Type = ObjectCategory.StringObject
         member this.IsTrue with get() = (p <> "")
@@ -221,9 +221,9 @@ module Lexical =
                           (NumberToken (Int32.Parse t)), x
                           )
                   | '"' ->
-                      getString text index
+                      getString text (index+1)
                       |> (fun x ->
-                          (StringToken text.[index..x-1]), x
+                          (StringToken text.[(index+1)..x-1]), (x+1)
                           )
                   | '{' ->
                       LeftBraceToken, (index+1)
@@ -360,7 +360,7 @@ module rec Parser =
                         @ (f1())
             | SemiToken ->
                 []
-            | NumberToken x ->
+            | NumberToken _ | StringToken _ ->
                 let op = parseState.moveNext()
                 if op = SemiToken || op = RightParentheses || op = LeftBraceToken then
                     if op = SemiToken then
@@ -418,7 +418,7 @@ let main argv =
    let f = FunctionObject()
    f.PushToOpList ops
    let ret = (Vm.eval f) :?> IMfsObject
-   assert (ret.ToString() = (3).ToString())
+   assert (ret.ToString() = ("kkps").ToString())
    printf "%s" "success"
    0
 
