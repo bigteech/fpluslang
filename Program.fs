@@ -29,10 +29,15 @@ type ObjectCategory =
     | StringObject = 2
     | BooleanObject = 3
     | FunctionObject = 4
+    | NullObject = 5
 
 type IMfsObject =
     abstract member Type: ObjectCategory  
     abstract member IsTrue: bool
+
+type IMfsCallable =
+    abstract member Call: (IMfsObject list) -> IMfsObject  
+
 
 type Op =
     | Add
@@ -51,6 +56,7 @@ type Op =
     | JumpIfFalse of int
     | Jump of int
     | Store of String
+    | Call of int
 
 
 
@@ -88,55 +94,19 @@ type StringObject(p: string) =
         member this.Type = ObjectCategory.StringObject
         member this.IsTrue with get() = (p <> "")
 
+type NullObject() = 
+    override this.ToString() = 
+        raise (Exception "null不能ToString")
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.NullObject
+        member this.IsTrue with get() = false
+
+
+let globalScope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
+
+
 type FunctionObject() = 
     let mutable oplst: Op list = []
-
-    member this.Call(args: IMfsObject list) = 
-        let stack = Collections.Stack()
-        let mutable scope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
-        let mutable index = 0
-        let eval op =
-            match op with
-                | LoadConst x ->
-                    stack.Push x
-                    1
-                | Add ->
-                    let l1 = stack.Pop() :?> IMfsObject
-                    let l2 = stack.Pop() :?> IMfsObject
-                    match l1.Type with
-                        | ObjectCategory.StringObject ->
-                            StringObject.Add(l1 :?> StringObject ,l2 :?> StringObject) :> IMfsObject
-                        | ObjectCategory.NumberObject ->
-                            NumberObject.Add(l1 :?> NumberObject, l2 :?> NumberObject) :> IMfsObject
-                    |>  stack.Push
-                    1
-                | JumpIfFalse x ->
-                    let l1 = stack.Pop() :?> IMfsObject
-                    if not(l1.IsTrue) then
-                        x
-                    else
-                        1
-                | Jump x ->
-                    x
-                | Store x ->
-                    scope.Add(x, (stack.Pop() :?> IMfsObject))
-                    1
-                | LoadVar x ->
-                    stack.Push (scope.Item(x))
-                    1
-                | Mul ->
-                    let l1 = stack.Pop() :?> IMfsObject
-                    let l2 = stack.Pop() :?> IMfsObject
-                    match l1.Type with
-                        | ObjectCategory.StringObject ->
-                            raise (Exception "字符串不能相乘")
-                        | ObjectCategory.NumberObject ->
-                            NumberObject.Mul(l1 :?> NumberObject, l2 :?> NumberObject) :> IMfsObject
-                    |>  stack.Push
-                    1
-        while index < oplst.Length do
-            index <- index + (eval (oplst.[index]))
-        stack.Pop()
 
     member this.OpList with get() = oplst
     member this.PushToOpList(p) = oplst <- (oplst @ p);
@@ -144,12 +114,92 @@ type FunctionObject() =
     interface IMfsObject with 
         member this.Type = ObjectCategory.FunctionObject
         member this.IsTrue with get() = true
+    interface IMfsCallable with 
+        member this.Call(args: IMfsObject list): IMfsObject = 
+            let stack = Collections.Stack()
+            let mutable scope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
+            let mutable index = 0
+            let eval op =
+                match op with
+                    | LoadConst x ->
+                        stack.Push x
+                        1
+                    | Add ->
+                        let l1 = stack.Pop() :?> IMfsObject
+                        let l2 = stack.Pop() :?> IMfsObject
+                        match l1.Type with
+                            | ObjectCategory.StringObject ->
+                                StringObject.Add(l1 :?> StringObject ,l2 :?> StringObject) :> IMfsObject
+                            | ObjectCategory.NumberObject ->
+                                NumberObject.Add(l1 :?> NumberObject, l2 :?> NumberObject) :> IMfsObject
+                        |>  stack.Push
+                        1
+                    | JumpIfFalse x ->
+                        let l1 = stack.Pop() :?> IMfsObject
+                        if not(l1.IsTrue) then
+                            x
+                        else
+                            1
+                    | Jump x ->
+                        x
+                    | Store x ->
+                        scope.Add(x, (stack.Pop() :?> IMfsObject))
+                        1
+                    | Call x ->
+                        let p = [ for i in 1 .. x -> (stack.Pop() :?> IMfsObject) ]
+                        let f = stack.Pop() :?> IMfsCallable
+                        stack.Push (f.Call p)
+                        1
+                    | LoadVar x ->
+                        try
+                            stack.Push (scope.Item(x))
+                        with
+                            | _ ->
+                                stack.Push (globalScope.Item(x))
+                        1
+                    | Mul ->
+                        let l1 = stack.Pop() :?> IMfsObject
+                        let l2 = stack.Pop() :?> IMfsObject
+                        match l1.Type with
+                            | ObjectCategory.StringObject ->
+                                raise (Exception "字符串不能相乘")
+                            | ObjectCategory.NumberObject ->
+                                NumberObject.Mul(l1 :?> NumberObject, l2 :?> NumberObject) :> IMfsObject
+                        |>  stack.Push
+                        1
+            while index < oplst.Length do
+                index <- index + (eval (oplst.[index]))
+            downcast stack.Pop()
+
+    
+
+type PrintFunction () =
+    interface IMfsCallable with 
+        member this.Call(args: IMfsObject list): IMfsObject =
+            let p = args.[0] 
+            match p.Type with 
+                | ObjectCategory.StringObject->
+                    (p :?> StringObject).Value
+                | ObjectCategory.NumberObject->
+                    (p :?> NumberObject).Value.ToString()
+                | _ ->
+                    p.Type.ToString()
+            |> printf "%s"
+            upcast NullObject()
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.FunctionObject
+        member this.IsTrue with get() = true
+
+globalScope.Add("print", PrintFunction())
+        
 
 
 let getLevelByToken token =
     match token with 
         | AddToken -> 2
         | MulToken -> 1
+        
 
 
 type ParseState = {
@@ -303,6 +353,27 @@ module rec Parser =
  
     let parseGetOrCallOrNumber parseState =
         ()
+
+    let parseFunctionParams (parseState: ParseState) index =
+        let token = parseState.nextToken()
+        match token with
+            | IdenToken _ | NumberToken _ | StringToken _ ->
+                parseState.moveNext() |> ignore
+                let c = getObjectByToken token
+                let a,b = parseFunctionParams parseState (index+1)
+                (c @ a), b
+            | LeftParentheses ->
+                parseState.moveNext() |> ignore
+                let c = parseExperienceBinary2 parseState
+                let a,b = parseFunctionParams parseState (index+1)
+                (c @ a), (b)
+            | _ ->
+                [], index
+
+    let parseCall (parseState: ParseState) =
+        let p,index = parseFunctionParams parseState 0
+        p @ [Call index]
+        
     let parseBindStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
         match parseState.moveNext() with
@@ -347,6 +418,24 @@ module rec Parser =
                     ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
 
 
+    let parseExperienceBinary3 (parseState: ParseState) ops2 f1 level= 
+        let op = parseState.moveNext()
+        if op = SemiToken || op = Eof || op = RightParentheses || op = LeftParentheses || op = LeftBraceToken then
+            ops2
+            @ (f1())
+        else
+            let level1 = getLevelByToken op
+            if level1 > level then
+                ops2
+                 @ (f1())
+                 @ (parseExperienceBinary parseState 10 (fun () -> []))
+                 @ [getOpByToken op]
+            else
+                (parseExperienceBinary parseState level1 (fun () -> 
+                        ops2 @ [getOpByToken op]
+                    ))
+                @ (f1())
+
     let parseExperienceBinary2 (parseState: ParseState) =
         let ops = parseExperienceBinary parseState 10 (fun () -> [])
         match parseState.currentToken with
@@ -358,51 +447,23 @@ module rec Parser =
 
     let parseExperienceBinary (parseState: ParseState)  level (f1: unit -> Op list) : Op list =
         let token = parseState.moveNext()
-        let ops = []
         match token with
             | LeftParentheses ->
-                let ops2 = parseExperienceBinary2 parseState
-                let op = parseState.moveNext()
-                if op = SemiToken || op = RightParentheses || op = LeftParentheses then
-                    ops 
-                    @ ops2
-                    @ (f1())
-                else
-                    let level1 = getLevelByToken op
-                    if level1 > level then
-                        ops 
-                         @ ops2
-                         @ (f1())
-                         @ (parseExperienceBinary parseState 10 (fun () -> []))
-                         @ [getOpByToken op]
-                    else
-                        ops 
-                        @ (parseExperienceBinary parseState level1 (fun () -> 
-                                ops2 @ [getOpByToken op]
-                            ))
-                        @ (f1())
+                let ops = parseExperienceBinary2 parseState
+                parseExperienceBinary3 parseState ops f1 level
             | SemiToken ->
                 []
-            | NumberToken _ | StringToken _ | IdenToken _ ->
-                let op = parseState.moveNext()
-                if op = SemiToken || op = RightParentheses || op = LeftBraceToken then
-                    ops 
-                    @ (getObjectByToken token)
-                    @ (f1())
-                else
-                    let level1 = getLevelByToken op
-                    if level1 > level then
-                        ops 
-                         @ (getObjectByToken token)
-                         @ (f1())
-                         @ (parseExperienceBinary parseState 10 (fun () -> []))
-                         @ [getOpByToken op]
-                    else
-                        ops 
-                        @ (parseExperienceBinary parseState level1 (fun () -> 
-                                (getObjectByToken token) @ [getOpByToken op]
-                            ))
-                        @ (f1())
+            | IdenToken x ->
+                match parseState.nextToken() with
+                    | AddToken | MulToken | DiviToken | SubToken ->
+                        let ops = getObjectByToken token
+                        parseExperienceBinary3 parseState ops f1 level
+                    | _ ->
+                        let ops = [LoadVar x] @ (parseCall parseState)
+                        parseExperienceBinary3 parseState ops f1 level
+            | NumberToken _ | StringToken _ ->
+                let ops = getObjectByToken token
+                parseExperienceBinary3 parseState ops f1 level
             | _ -> 
                 []        
 
@@ -430,7 +491,7 @@ module rec Parser =
          parseState.op
 
 module Vm = 
-    let eval (f:FunctionObject) =
+    let eval (f:IMfsCallable) =
         f.Call []
 
 
@@ -439,8 +500,6 @@ let main argv =
    let ops = Parser.parseSourceElement (String.Join("", IO.File.ReadLines("./test.mfs")))
    let f = FunctionObject()
    f.PushToOpList ops
-   let ret = (Vm.eval f) :?> IMfsObject
-   assert (ret.ToString() = ("kkps").ToString())
-   printf "%s" "success"
+   Vm.eval f |> ignore
    0
 
