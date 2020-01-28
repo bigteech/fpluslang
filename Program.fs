@@ -29,7 +29,7 @@ type ObjectCategory =
     | MfsNumberObject = 1
     | MfsStringObject = 2
     | BooleanObject = 3
-    | FunctionObject = 4
+    | MfsFunctionObject = 4
     | MfsNullObject = 5
 
 type IMfsObject =
@@ -61,6 +61,7 @@ type Op =
     | Jump of int
     | Store of String
     | Call of int
+    | Function of Op list * string list
 
 
 
@@ -118,19 +119,20 @@ type MfsHashObject() =
 let globalScope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
 
 
-type FunctionObject() = 
+type MfsFunctionObject(argsNames: string list) = 
     let mutable oplst: Op list = []
 
     member this.OpList with get() = oplst
     member this.PushToOpList(p) = oplst <- (oplst @ p);
 
     interface IMfsObject with 
-        member this.Type = ObjectCategory.FunctionObject
+        member this.Type = ObjectCategory.MfsFunctionObject
         member this.IsTrue with get() = true
     interface IMfsCallable with 
         member this.Call(args: IMfsObject list): IMfsObject = 
             let stack = Collections.Stack()
             let mutable scope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
+            for i = 0 to (argsNames.Length - 1) do scope.Add(argsNames.[i], args.[i])
             let mutable index = 0
             let eval op =
                 match op with
@@ -174,6 +176,12 @@ type FunctionObject() =
                             | _ ->
                                 stack.Push (globalScope.Item(x))
                         1
+
+                    | Function (x, y) ->
+                        let f = MfsFunctionObject(y)
+                        f.PushToOpList x
+                        stack.Push f
+                        1
                     | Mul ->
                         let l1 = stack.Pop() :?> IMfsObject
                         let l2 = stack.Pop() :?> IMfsObject
@@ -207,7 +215,7 @@ type PrintFunction () =
             upcast MfsNullObject()
 
     interface IMfsObject with 
-        member this.Type = ObjectCategory.FunctionObject
+        member this.Type = ObjectCategory.MfsFunctionObject
         member this.IsTrue with get() = true
 
 type ReadFunction () =
@@ -217,7 +225,7 @@ type ReadFunction () =
             upcast MfsStringObject (String.Join("", IO.File.ReadLines(path)))
 
     interface IMfsObject with 
-        member this.Type = ObjectCategory.FunctionObject
+        member this.Type = ObjectCategory.MfsFunctionObject
         member this.IsTrue with get() = true
 
 type WriteFunction () =
@@ -229,7 +237,7 @@ type WriteFunction () =
             upcast MfsNullObject()
 
     interface IMfsObject with 
-        member this.Type = ObjectCategory.FunctionObject
+        member this.Type = ObjectCategory.MfsFunctionObject
         member this.IsTrue with get() = true
 
 type FileHashObject () =
@@ -428,6 +436,19 @@ module rec Parser =
             | _ ->
                 [], index
 
+    let parseParams (parseState: ParseState): string list = 
+        let token = parseState.moveNext()
+        match token with
+            | IdenToken x->
+                match parseState.nextToken() with
+                    | CommaToken ->
+                        let m = parseParams parseState
+                        ([x] @ m)
+                    | _ ->
+                        [x]
+            | _ ->
+                raise (Exception "形参必须是合法变量名")
+
     let tryParseCall (parseState: ParseState) =
         let p,index = parseTuple parseState 0
         if index = 0 then
@@ -441,9 +462,17 @@ module rec Parser =
         parseState.moveNext() |> ignore
         match parseState.moveNext() with
             | IdenToken name ->
-                match parseState.moveNext() with
+                match parseState.nextToken() with
                     | AssignToken ->
+                        parseState.moveNext() |> ignore
                         (parseExperienceBinary parseState 10 (fun () -> [])) @ [Store name]
+                    | IdenToken x ->
+                        let ps = parseParams parseState
+                        parseState.moveNext() |> ignore
+                        parseState.moveNext() |> ignore
+                        let ret = [Function ((parseStatement parseState), ps); Store name]
+                        parseState.moveNext() |> ignore
+                        ret
                     | _ ->
                         raise (Exception("let需要="))
             | _ ->
@@ -573,7 +602,7 @@ module Vm =
 [<EntryPoint>]
 let main argv =
    let ops = Parser.parseSourceElement (String.Join("", IO.File.ReadLines("./test.mfs")))
-   let f = FunctionObject()
+   let f = MfsFunctionObject([])
    f.PushToOpList ops
    Vm.eval f |> ignore
    0

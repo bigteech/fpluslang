@@ -1,5 +1,11 @@
 
-let v = file.read "./test.txt";
+
+let readfile path = {
+    file.read path;
+}
+
+let v = readfile "./test.txt";
+
 if v {
    print v;
 } else {
