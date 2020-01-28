@@ -2,5 +2,5 @@ if 0 {
    let a = "kk";
    print (a + "p" + "s");
 } else {
-   print ((2 + 2) * 3);
+   print 2,3,4;
 }

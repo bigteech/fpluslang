@@ -18,6 +18,7 @@ type Token =
     | MulToken
     | DiviToken
     | SemiToken
+    | CommaToken
     | AssignToken
     | LeftParentheses
     | RightParentheses
@@ -176,15 +177,15 @@ type FunctionObject() =
 type PrintFunction () =
     interface IMfsCallable with 
         member this.Call(args: IMfsObject list): IMfsObject =
-            let p = args.[0] 
-            match p.Type with 
-                | ObjectCategory.StringObject->
-                    (p :?> StringObject).Value
-                | ObjectCategory.NumberObject->
-                    (p :?> NumberObject).Value.ToString()
-                | _ ->
-                    p.Type.ToString()
-            |> printf "%s"
+            let temp (p: IMfsObject): string = 
+                match p.Type with 
+                    | ObjectCategory.StringObject->
+                        (p :?> StringObject).Value
+                    | ObjectCategory.NumberObject->
+                        (p :?> NumberObject).Value.ToString()
+                    | _ ->
+                        p.Type.ToString()
+            String.Join("", args |> List.rev |> List.map temp) |> printf "%s"
             upcast NullObject()
 
     interface IMfsObject with 
@@ -312,6 +313,8 @@ module Lexical =
                       nextToken parseState (index+1)
                   | ';' ->
                       SemiToken, (index+1)
+                  | ',' ->
+                      CommaToken, (index+1)
                   | _ ->
                       Eof, 0
 
@@ -357,6 +360,9 @@ module rec Parser =
     let parseFunctionParams (parseState: ParseState) index =
         let token = parseState.nextToken()
         match token with
+            | CommaToken ->
+                parseState.moveNext() |> ignore
+                parseFunctionParams parseState (index)
             | IdenToken _ | NumberToken _ | StringToken _ ->
                 parseState.moveNext() |> ignore
                 let c = getObjectByToken token
@@ -420,7 +426,10 @@ module rec Parser =
 
     let parseExperienceBinary3 (parseState: ParseState) ops2 f1 level= 
         let op = parseState.moveNext()
-        if op = SemiToken || op = Eof || op = RightParentheses || op = LeftParentheses || op = LeftBraceToken then
+        if op = SemiToken 
+            || op = Eof || op = RightParentheses 
+            || op = LeftParentheses || op = LeftBraceToken 
+            || op = RightBraceToken || op = CommaToken then
             ops2
             @ (f1())
         else
