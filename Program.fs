@@ -357,27 +357,27 @@ module rec Parser =
     let parseGetOrCallOrNumber parseState =
         ()
 
-    let parseFunctionParams (parseState: ParseState) index =
+    let parseTunple (parseState: ParseState) index =
         let token = parseState.nextToken()
         match token with
             | CommaToken ->
                 parseState.moveNext() |> ignore
-                parseFunctionParams parseState (index)
+                parseTunple parseState (index)
             | IdenToken _ | NumberToken _ | StringToken _ ->
                 parseState.moveNext() |> ignore
                 let c = getObjectByToken token
-                let a,b = parseFunctionParams parseState (index+1)
+                let a,b = parseTunple parseState (index+1)
                 (c @ a), b
             | LeftParentheses ->
                 parseState.moveNext() |> ignore
                 let c = parseExperienceBinary2 parseState
-                let a,b = parseFunctionParams parseState (index+1)
+                let a,b = parseTunple parseState (index+1)
                 (c @ a), (b)
             | _ ->
                 [], index
 
     let parseCall (parseState: ParseState) =
-        let p,index = parseFunctionParams parseState 0
+        let p,index = parseTunple parseState 0
         p @ [Call index]
         
     let parseBindStatement (parseState: ParseState) =
