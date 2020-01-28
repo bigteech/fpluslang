@@ -1,6 +1,8 @@
-if 0 {
-   let a = "kk";
-   print (a + "p" + "s");
+
+let v = file.read "./test.txt";
+if v {
+   print v;
 } else {
-   print 2,3,4;
+   print 2,(4+1),4;
 }
+

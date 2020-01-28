@@ -26,11 +26,11 @@ type Token =
 
 type ObjectCategory =
     | HashObject = 0
-    | NumberObject = 1
-    | StringObject = 2
+    | MfsNumberObject = 1
+    | MfsStringObject = 2
     | BooleanObject = 3
     | FunctionObject = 4
-    | NullObject = 5
+    | MfsNullObject = 5
 
 type IMfsObject =
     abstract member Type: ObjectCategory  
@@ -38,6 +38,9 @@ type IMfsObject =
 
 type IMfsCallable =
     abstract member Call: (IMfsObject list) -> IMfsObject  
+
+type IMfsHashable =
+    abstract member Get: (string) -> IMfsObject  
 
 
 type Op =
@@ -61,19 +64,14 @@ type Op =
 
 
 
-type MfsHashObject() =
 
-    interface IMfsObject with 
-        member this.Type = ObjectCategory.HashObject
-        member this.IsTrue with get() = true
+type MfsNumberObject(p: int) = 
 
-type NumberObject(p: int) = 
-
-    static member Add(p1:NumberObject, p2: NumberObject) =
-        NumberObject(p1.Value + p2.Value)
+    static member Add(p1:MfsNumberObject, p2: MfsNumberObject) =
+        MfsNumberObject(p1.Value + p2.Value)
     
-    static member Mul(p1:NumberObject, p2: NumberObject) =
-        NumberObject(p1.Value * p2.Value)
+    static member Mul(p1:MfsNumberObject, p2: MfsNumberObject) =
+        MfsNumberObject(p1.Value * p2.Value)
 
     member this.Value with get() = p
 
@@ -81,26 +79,40 @@ type NumberObject(p: int) =
         p.ToString()
 
     interface IMfsObject with 
-        member this.Type = ObjectCategory.NumberObject
+        member this.Type = ObjectCategory.MfsNumberObject
         member this.IsTrue with get() = (p <> 0)
 
-type StringObject(p: string) = 
+type MfsStringObject(p: string) = 
 
-    static member Add(p1:StringObject, p2: StringObject) =
-        StringObject(p1.Value + p2.Value)
+    static member Add(p1:MfsStringObject, p2: MfsStringObject) =
+        MfsStringObject(p1.Value + p2.Value)
     
     member this.Value with get() = p
     override this.ToString() = p.ToString()
     interface IMfsObject with 
-        member this.Type = ObjectCategory.StringObject
+        member this.Type = ObjectCategory.MfsStringObject
         member this.IsTrue with get() = (p <> "")
 
-type NullObject() = 
+type MfsNullObject() = 
     override this.ToString() = 
         raise (Exception "null不能ToString")
     interface IMfsObject with 
-        member this.Type = ObjectCategory.NullObject
+        member this.Type = ObjectCategory.MfsNullObject
         member this.IsTrue with get() = false
+
+type MfsHashObject() =
+    let kvs = new Collections.Generic.Dictionary<string, IMfsObject>();
+    interface IMfsHashable with
+        member this.Get(p: string) =
+            try
+                kvs.Item p
+            with
+                | _ ->
+                    upcast MfsNullObject()
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.HashObject
+        member this.IsTrue with get() = true
 
 
 let globalScope = new System.Collections.Generic.Dictionary<string, IMfsObject>();
@@ -129,10 +141,10 @@ type FunctionObject() =
                         let l1 = stack.Pop() :?> IMfsObject
                         let l2 = stack.Pop() :?> IMfsObject
                         match l1.Type with
-                            | ObjectCategory.StringObject ->
-                                StringObject.Add(l1 :?> StringObject ,l2 :?> StringObject) :> IMfsObject
-                            | ObjectCategory.NumberObject ->
-                                NumberObject.Add(l1 :?> NumberObject, l2 :?> NumberObject) :> IMfsObject
+                            | ObjectCategory.MfsStringObject ->
+                                MfsStringObject.Add(l1 :?> MfsStringObject ,l2 :?> MfsStringObject) :> IMfsObject
+                            | ObjectCategory.MfsNumberObject ->
+                                MfsNumberObject.Add(l1 :?> MfsNumberObject, l2 :?> MfsNumberObject) :> IMfsObject
                         |>  stack.Push
                         1
                     | JumpIfFalse x ->
@@ -151,6 +163,10 @@ type FunctionObject() =
                         let f = stack.Pop() :?> IMfsCallable
                         stack.Push (f.Call p)
                         1
+                    | Get x ->
+                        let l1 = stack.Pop() :?> IMfsHashable
+                        stack.Push (l1.Get x)
+                        1
                     | LoadVar x ->
                         try
                             stack.Push (scope.Item(x))
@@ -162,10 +178,12 @@ type FunctionObject() =
                         let l1 = stack.Pop() :?> IMfsObject
                         let l2 = stack.Pop() :?> IMfsObject
                         match l1.Type with
-                            | ObjectCategory.StringObject ->
+                            | ObjectCategory.MfsStringObject ->
                                 raise (Exception "字符串不能相乘")
-                            | ObjectCategory.NumberObject ->
-                                NumberObject.Mul(l1 :?> NumberObject, l2 :?> NumberObject) :> IMfsObject
+                            | ObjectCategory.MfsNumberObject ->
+                                MfsNumberObject.Mul(l1 :?> MfsNumberObject, l2 :?> MfsNumberObject) :> IMfsObject
+                            | _ ->
+                                raise (Exception "字符串不能相乘")
                         |>  stack.Push
                         1
             while index < oplst.Length do
@@ -179,21 +197,59 @@ type PrintFunction () =
         member this.Call(args: IMfsObject list): IMfsObject =
             let temp (p: IMfsObject): string = 
                 match p.Type with 
-                    | ObjectCategory.StringObject->
-                        (p :?> StringObject).Value
-                    | ObjectCategory.NumberObject->
-                        (p :?> NumberObject).Value.ToString()
+                    | ObjectCategory.MfsStringObject->
+                        (p :?> MfsStringObject).Value
+                    | ObjectCategory.MfsNumberObject->
+                        (p :?> MfsNumberObject).Value.ToString()
                     | _ ->
                         p.Type.ToString()
             String.Join("", args |> List.rev |> List.map temp) |> printf "%s"
-            upcast NullObject()
+            upcast MfsNullObject()
 
     interface IMfsObject with 
         member this.Type = ObjectCategory.FunctionObject
         member this.IsTrue with get() = true
 
+type ReadFunction () =
+    interface IMfsCallable with 
+        member this.Call(args: IMfsObject list): IMfsObject =
+            let path = (args.[0] :?> MfsStringObject).Value
+            upcast MfsStringObject (String.Join("", IO.File.ReadLines(path)))
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.FunctionObject
+        member this.IsTrue with get() = true
+
+type WriteFunction () =
+    interface IMfsCallable with 
+        member this.Call(args: IMfsObject list): IMfsObject =
+            let path = (args.[0] :?> MfsStringObject).Value
+            let value = (args.[0] :?> MfsStringObject).Value
+            IO.File.WriteAllText(path, value)
+            upcast MfsNullObject()
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.FunctionObject
+        member this.IsTrue with get() = true
+
+type FileHashObject () =
+    interface IMfsHashable with
+        member this.Get(p: string): IMfsObject = 
+            match p with
+                | "read" ->
+                    upcast ReadFunction()
+                | "write" ->
+                    upcast WriteFunction()
+                | _ ->
+                    upcast MfsNullObject()
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.HashObject
+        member this.IsTrue with get() = true
+
 globalScope.Add("print", PrintFunction())
-        
+globalScope.Add("file", FileHashObject())
+  
 
 
 let getLevelByToken token =
@@ -339,9 +395,9 @@ module Grammer =
 let getObjectByToken token: Op list = 
     match token with
         |  NumberToken x -> 
-            [LoadConst (NumberObject(x))]
+            [LoadConst (MfsNumberObject(x))]
         | StringToken x ->
-            [LoadConst (StringObject(x))]
+            [LoadConst (MfsStringObject(x))]
         | IdenToken x ->
             [LoadVar x]
         
@@ -353,10 +409,6 @@ let getOpByToken token =
         
 
 module rec Parser =
- 
-    let parseGetOrCallOrNumber parseState =
-        ()
-
     let parseTuple (parseState: ParseState) index =
         let token = parseState.nextToken()
         match token with
@@ -376,10 +428,15 @@ module rec Parser =
             | _ ->
                 [], index
 
-    let parseCall (parseState: ParseState) =
+    let tryParseCall (parseState: ParseState) =
         let p,index = parseTuple parseState 0
-        p @ [Call index]
-        
+        if index = 0 then
+            p
+        else
+            p @ [Call index]
+
+    let parseGet (parseState: ParseState) =
+        ()
     let parseBindStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
         match parseState.moveNext() with
@@ -467,8 +524,17 @@ module rec Parser =
                     | AddToken | MulToken | DiviToken | SubToken ->
                         let ops = getObjectByToken token
                         parseExperienceBinary3 parseState ops f1 level
+                    | DotToken ->
+                        parseState.moveNext() |> ignore
+                        let name = parseState.moveNext()
+                        match name with
+                            | IdenToken name ->
+                                let ops = [LoadVar x] @  [Get name] @ (tryParseCall parseState)
+                                parseExperienceBinary3 parseState ops f1 level
+                            | _ ->
+                                raise (Exception "属性必须是字符串")
                     | _ ->
-                        let ops = [LoadVar x] @ (parseCall parseState)
+                        let ops = [LoadVar x] @ (tryParseCall parseState)
                         parseExperienceBinary3 parseState ops f1 level
             | NumberToken _ | StringToken _ ->
                 let ops = getObjectByToken token
