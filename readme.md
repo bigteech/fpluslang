@@ -4,8 +4,11 @@
 ```f#
 let readfile path = {
     let p = ["read", "read2"];
-    file.[p.["0"]] path;
+    path 
+    |> file.[p.["0"]];
 }
+
+readfile "./test.txt" |> print;
 
 let v = readfile "./test.txt";
 
@@ -14,4 +17,5 @@ if v {
 } else {
    print 2,(4+1),4;
 }
+
 ```
