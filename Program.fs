@@ -35,15 +35,15 @@ type ObjectCategory =
     | MfsNullObject = 5
 
 type IMfsObject =
-    abstract member Type: ObjectCategory  
+    abstract member Type: ObjectCategory
     abstract member IsTrue: bool
 
 type IMfsCallable =
-    abstract member Call: (IMfsObject list) -> IMfsObject  
+    abstract member Call: (IMfsObject list) -> IMfsObject
 
 type IMfsHashable =
-    abstract member Get: (string) -> IMfsObject  
-    abstract member Set: (string * IMfsObject) -> unit  
+    abstract member Get: (string) -> IMfsObject
+    abstract member Set: (string * IMfsObject) -> unit
 
 
 type Op =
@@ -55,7 +55,7 @@ type Op =
     | Set
     | LoadConst of IMfsObject
     | LoadVar of string
-    | Load of string 
+    | Load of string
     | Assign
     | EndExp
     | Throw
@@ -69,24 +69,24 @@ type Op =
 
 
 
-type MfsNumberObject(p: int) = 
+type MfsNumberObject(p: int) =
 
     static member Add(p1:MfsNumberObject, p2: MfsNumberObject) =
         MfsNumberObject(p1.Value + p2.Value)
-    
+
     static member Mul(p1:MfsNumberObject, p2: MfsNumberObject) =
         MfsNumberObject(p1.Value * p2.Value)
 
     member this.Value with get() = p
 
-    override  this.ToString() = 
+    override  this.ToString() =
         p.ToString()
 
-    interface IMfsObject with 
+    interface IMfsObject with
         member this.Type = ObjectCategory.MfsNumberObject
         member this.IsTrue with get() = (p <> 0)
 
-type MfsStringObject(p: string) = 
+type MfsStringObject(p: string) =
 
     static member Add(p1:MfsStringObject, p2: MfsStringObject) =
         MfsStringObject(p1.Value + p2.Value)
@@ -649,12 +649,11 @@ module rec Parser =
             | NumberToken _ | StringToken _ ->
                 let ops = getObjectByToken token
                 parseExperienceBinary3 parseState ops f1 level
-            | _ -> 
-                []        
+            | _ ->
+                []
 
     let parseExperience  parseState =
         parseExperienceBinary parseState 10 (fun () -> [])
-        
 
     let parseStatement (parseState: ParseState): Op list = 
         match parseState.nextToken() with
@@ -664,7 +663,7 @@ module rec Parser =
                 (parseIfStatement parseState) @ (parseStatement parseState)
             | BindToken ->
                 (parseBindStatement parseState) @ (parseStatement parseState)
-            | _  -> 
+            | _  ->
                 (parseExperience parseState) @ (parseStatement parseState)
 
 
