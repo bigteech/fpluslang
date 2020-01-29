@@ -2,7 +2,9 @@
 
 let readfile path = {
     let p = ["read", "read2"];
-    file.[p.["0"]] path;
+    path 
+    |> file.[p.["0"]] 
+    |> print;
 }
 
 let v = readfile "./test.txt";

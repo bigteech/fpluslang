@@ -19,6 +19,8 @@ type Token =
     | DiviToken
     | SemiToken
     | CommaToken
+    | PipeToken
+    | OrToken
     | AssignToken
     | LeftParenthesesToken
     | RightParenthesesToken
@@ -313,6 +315,7 @@ globalScope.Add("array", ArrayObject())
 
 let getLevelByToken token =
     match token with 
+        | PipeToken -> 9
         | AddToken -> 2
         | MulToken -> 1
         
@@ -434,6 +437,11 @@ module Lexical =
                       SemiToken, (index+1)
                   | ',' ->
                       CommaToken, (index+1)
+                  | '|' ->
+                      if text.[index+1] = '>' then
+                        PipeToken, (index+2)
+                      else
+                        OrToken, (index+1)
                   | _ ->
                       Eof, 0
 
@@ -463,12 +471,15 @@ let getObjectByToken token: Op list =
             [LoadConst (MfsStringObject(x))]
         | IdenToken x ->
             [LoadVar x]
+        | PipeToken ->
+            [Call 1]
         
 
 let getOpByToken token = 
     match token with
         |  MulToken  -> Mul
-        | AddToken -> Add
+        |  AddToken -> Add
+        | PipeToken -> Call 1
         
 
 module rec Parser =
@@ -627,7 +638,7 @@ module rec Parser =
                 []
             | IdenToken x ->
                 match parseState.nextToken() with
-                    | AddToken | MulToken | DiviToken | SubToken ->
+                    | AddToken | MulToken | DiviToken | SubToken | PipeToken ->
                         let ops = getObjectByToken token
                         parseExperienceBinary3 parseState ops f1 level
                     | DotToken ->
