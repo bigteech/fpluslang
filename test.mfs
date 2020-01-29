@@ -1,7 +1,15 @@
 let readfile path = {
     let p = ["read", "read2"];
-    path 
-    |> file.[p.["0"]];
+    path |> file.[p.["0"]] |> print;
+    path |> file.[p.["0"]];
 }
 
 readfile "./test.txt" |> print;
+
+let v = readfile "./test.txt";
+
+if v {
+   print v;
+} else {
+   print 2,(4+1),4;
+}
