@@ -20,8 +20,10 @@ type Token =
     | SemiToken
     | CommaToken
     | AssignToken
-    | LeftParentheses
-    | RightParentheses
+    | LeftParenthesesToken
+    | RightParenthesesToken
+    | LeftSquareToken
+    | RightSquareToken
     | Eof
 
 type ObjectCategory =
@@ -48,7 +50,7 @@ type Op =
     | Sub
     | Mul
     | Divi
-    | Get of string
+    | Get
     | Set
     | LoadConst of IMfsObject
     | LoadVar of string
@@ -165,9 +167,10 @@ type MfsFunctionObject(argsNames: string list) =
                         let f = stack.Pop() :?> IMfsCallable
                         stack.Push (f.Call p)
                         1
-                    | Get x ->
-                        let l1 = stack.Pop() :?> IMfsHashable
-                        stack.Push (l1.Get x)
+                    | Get ->
+                        let l1 = stack.Pop() :?> MfsStringObject
+                        let l2 = stack.Pop() :?> IMfsHashable
+                        stack.Push (l2.Get l1.Value)
                         1
                     | LoadVar x ->
                         try
@@ -354,9 +357,13 @@ module Lexical =
                   | '}' ->
                       RightBraceToken, (index+1)
                   | '(' ->
-                      LeftParentheses, (index+1)
+                      LeftParenthesesToken, (index+1)
                   | ')' ->
-                      RightParentheses, (index+1)
+                      RightParenthesesToken, (index+1)
+                  | '[' ->
+                      LeftSquareToken, (index+1)
+                  | ']' ->
+                      RightSquareToken, (index+1)
                   | '.' ->
                       DotToken, (index+1)
                   | '+' ->
@@ -428,7 +435,7 @@ module rec Parser =
                 let c = getObjectByToken token
                 let a,b = parseTuple parseState (index+1)
                 (c @ a), b
-            | LeftParentheses ->
+            | LeftParenthesesToken ->
                 parseState.moveNext() |> ignore
                 let c = parseExperienceBinary2 parseState
                 let a,b = parseTuple parseState (index+1)
@@ -513,9 +520,10 @@ module rec Parser =
     let parseExperienceBinary3 (parseState: ParseState) ops2 f1 level= 
         let op = parseState.moveNext()
         if op = SemiToken 
-            || op = Eof || op = RightParentheses 
-            || op = LeftParentheses || op = LeftBraceToken 
-            || op = RightBraceToken || op = CommaToken then
+            || op = Eof || op = RightParenthesesToken 
+            || op = LeftParenthesesToken || op = LeftBraceToken 
+            || op = RightBraceToken || op = CommaToken
+            || op = RightSquareToken then
             ops2
             @ (f1())
         else
@@ -534,16 +542,25 @@ module rec Parser =
     let parseExperienceBinary2 (parseState: ParseState) =
         let ops = parseExperienceBinary parseState 10 (fun () -> [])
         match parseState.currentToken with
-            | RightParentheses ->
+            | RightParenthesesToken ->
                 ()
             | _ ->
-                raise (Exception("括号需要闭合"))
+                raise (Exception("园括号需要闭合"))
+        ops
+
+    let parseExperienceBinarySquare (parseState: ParseState) =
+        let ops = parseExperienceBinary parseState 10 (fun () -> [])
+        match parseState.currentToken with
+            | RightSquareToken ->
+                ()
+            | _ ->
+                raise (Exception("方括号需要闭合"))
         ops
 
     let parseExperienceBinary (parseState: ParseState)  level (f1: unit -> Op list) : Op list =
         let token = parseState.moveNext()
         match token with
-            | LeftParentheses ->
+            | LeftParenthesesToken ->
                 let ops = parseExperienceBinary2 parseState
                 parseExperienceBinary3 parseState ops f1 level
             | SemiToken ->
@@ -558,7 +575,11 @@ module rec Parser =
                         let name = parseState.moveNext()
                         match name with
                             | IdenToken name ->
-                                let ops = [LoadVar x] @  [Get name] @ (tryParseCall parseState)
+                                let ops = [LoadVar x] @ [LoadConst (MfsStringObject name);Get] @ (tryParseCall parseState)
+                                parseExperienceBinary3 parseState ops f1 level
+                            | LeftSquareToken ->
+                                let opsValue = parseExperienceBinarySquare  parseState
+                                let ops = [LoadVar x] @ opsValue @ [Get] @ (tryParseCall parseState)
                                 parseExperienceBinary3 parseState ops f1 level
                             | _ ->
                                 raise (Exception "属性必须是字符串")
