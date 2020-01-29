@@ -43,6 +43,7 @@ type IMfsCallable =
 
 type IMfsHashable =
     abstract member Get: (string) -> IMfsObject  
+    abstract member Set: (string * IMfsObject) -> unit  
 
 
 type Op =
@@ -105,14 +106,30 @@ type MfsNullObject() =
 
 type MfsHashObject() =
     let kvs = new Collections.Generic.Dictionary<string, IMfsObject>();
-    interface IMfsHashable with
-        member this.Get(p: string) =
+    
+    member this.Set m = 
+        let p,v = m;
+        try
+            if kvs.ContainsKey p then
+                (kvs.Remove p) |> ignore
+            kvs.Add (p,v)  |> ignore
+        with
+            | _ ->
+                ()
+
+    member this.Get(p: string) =
             try
                 kvs.Item p
             with
                 | _ ->
                     upcast MfsNullObject()
 
+    interface IMfsHashable with
+        member this.Get(p: string) =
+            this.Get p
+
+        member this.Set m =
+            this.Set m
     interface IMfsObject with 
         member this.Type = ObjectCategory.HashObject
         member this.IsTrue with get() = true
@@ -254,13 +271,44 @@ type FileHashObject () =
                 | _ ->
                     upcast MfsNullObject()
 
+        member this.Set m =
+            raise (Exception "不能改变内置对象")
+
     interface IMfsObject with 
         member this.Type = ObjectCategory.HashObject
         member this.IsTrue with get() = true
 
+
+type MfsArrayObject()=
+    inherit MfsHashObject();
+
+    member this.Init(p: IMfsObject list) = 
+        for i=0 to (p.Length-1) do 
+            base.Set(i.ToString(), p.[i])
+        MfsArrayObject()
+
+type ArrayCreateFunction () =
+    interface IMfsCallable with 
+        member this.Call(args: IMfsObject list): IMfsObject =
+            let ret = MfsArrayObject()
+            ret.Init args |> ignore
+            upcast ret
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.MfsFunctionObject
+        member this.IsTrue with get() = true
+
+
+type ArrayObject () =
+    inherit MfsHashObject();
+    do
+        base.Set("create", upcast ArrayCreateFunction())
+
+
 globalScope.Add("print", PrintFunction())
 globalScope.Add("file", FileHashObject())
-  
+globalScope.Add("array", ArrayObject())
+
 
 
 let getLevelByToken token =
@@ -557,9 +605,21 @@ module rec Parser =
                 raise (Exception("方括号需要闭合"))
         ops
 
+    let parseExperienceNewArray (parseState: ParseState) =
+        let ops = parseTuple parseState 0
+        match parseState.moveNext() with
+            | RightSquareToken ->
+                ()
+            | _ ->
+                raise (Exception("数组方括号需要闭合"))
+        ops
     let parseExperienceBinary (parseState: ParseState)  level (f1: unit -> Op list) : Op list =
         let token = parseState.moveNext()
         match token with
+            | LeftSquareToken ->
+                let opsTuple, index = parseExperienceNewArray  parseState
+                let ops = [LoadVar "array"; LoadConst (MfsStringObject "create"); Get] @ opsTuple @ [Call opsTuple.Length]
+                parseExperienceBinary3 parseState ops f1 level
             | LeftParenthesesToken ->
                 let ops = parseExperienceBinary2 parseState
                 parseExperienceBinary3 parseState ops f1 level

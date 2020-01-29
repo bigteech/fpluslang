@@ -1,8 +1,8 @@
 
 
 let readfile path = {
-    let m = "read";
-    file.[m] path;
+    let p = ["read"];
+    file.[p.["0"]] path;
 }
 
 let v = readfile "./test.txt";
