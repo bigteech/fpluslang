@@ -1,7 +1,7 @@
 
 
 let readfile path = {
-    let p = ["read"];
+    let p = ["read", "read2"];
     file.[p.["0"]] path;
 }
 

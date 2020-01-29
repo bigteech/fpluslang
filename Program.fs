@@ -291,8 +291,8 @@ type ArrayCreateFunction () =
     interface IMfsCallable with 
         member this.Call(args: IMfsObject list): IMfsObject =
             let ret = MfsArrayObject()
-            ret.Init args |> ignore
-            upcast ret
+            ret.Init (args |> List.rev) |> ignore
+            upcast ret 
 
     interface IMfsObject with 
         member this.Type = ObjectCategory.MfsFunctionObject
