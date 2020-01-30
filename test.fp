@@ -8,7 +8,7 @@ let mydict = createdict "a","2","b","4";
 mydict.a |> print;
 
 mydict.b 
-    |> fn x = { x + "ig"; }
+    |> fn x = { x + "i am lambda exp"; }
     |> print;
 
 let dict2 = {"m",1;"n",2};
