@@ -712,6 +712,7 @@ module rec Parser =
                 | SemiToken ->
                     match parseState.nextToken with
                         | RightBraceToken ->
+                            parseState.moveNext() |> ignore
                             ops, (index+1)
                         | _ ->
                             let m,n = parseKv parseState (index+1)
@@ -722,7 +723,7 @@ module rec Parser =
 
     let parseExpressionNewHashObject (parseState: ParseState) =
         let ops, index = parseKv parseState 0
-        match parseState.moveNext() with
+        match parseState.currentToken with
             | RightBraceToken ->
                 ()
             | _ ->
@@ -825,6 +826,7 @@ module rec Parser =
                 parseState.moveNext() |> ignore
                 match parseState.nextToken with
                     | RightBraceToken ->
+                        parseState.moveNext() |> ignore
                         [Op [LoadVar x]]
                     | SemiToken ->
                         parseState.moveNext() |> ignore
