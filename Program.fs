@@ -26,6 +26,7 @@ type Token =
     | RightParenthesesToken
     | LeftSquareToken
     | RightSquareToken
+    | LambdaToken
     | Eof
 
 type ObjectCategory =
@@ -397,6 +398,8 @@ module Lexical =
               ElseToken, 4
           | "let" ->
               BindToken, 3
+          | "fn" ->
+              LambdaToken, 2
           | _ ->
               IdenToken(text), text.Length
 
@@ -518,7 +521,7 @@ module rec Parser =
                 (c @ a), b
             | LeftParenthesesToken ->
                 parseState.moveNext() |> ignore
-                let c = parseExperienceBinary2 parseState
+                let c = parseExpressionBinary2 parseState
                 let a,b = parseTuple parseState (index+1)
                 (c @ a), (b)
             | _ ->
@@ -547,6 +550,15 @@ module rec Parser =
 
     let parseGet (parseState: ParseState) =
         ()
+    
+    let parseLambdaExpression (parseState: ParseState) =
+        let ps = parseParams parseState
+        parseState.moveNext() |> ignore
+        parseState.moveNext() |> ignore
+        let ret = [Function ((parseStatement parseState), ps)]
+        parseState.moveNext() |> ignore
+        ret
+
     let parseBindStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
         match parseState.moveNext() with
@@ -554,7 +566,7 @@ module rec Parser =
                 match parseState.nextToken() with
                     | AssignToken ->
                         parseState.moveNext() |> ignore
-                        (parseExperienceBinary parseState 10 (fun () -> [], [])) @ [Store name]
+                        (parseExpressionBinary parseState 10 (fun () -> [], [])) @ [Store name]
                     | IdenToken x ->
                         let ps = parseParams parseState
                         parseState.moveNext() |> ignore
@@ -568,7 +580,7 @@ module rec Parser =
                 raise (Exception("let需要名称"))
     let parseIfStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
-        let ops = parseExperienceBinary parseState 10 (fun () -> [], [])
+        let ops = parseExpressionBinary parseState 10 (fun () -> [], [])
         match parseState.currentToken with
             | LeftBraceToken ->
                 ()
@@ -599,7 +611,7 @@ module rec Parser =
                     ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
 
 
-    let parseExperienceBinary3 (parseState: ParseState) ops2 f1 level= 
+    let parseExpressionBinary3 (parseState: ParseState) ops2 f1 level= 
         let op = parseState.moveNext()
         let v1,o1 = f1()
         if op = SemiToken 
@@ -616,17 +628,17 @@ module rec Parser =
                 v1
                  @ ops2
                  @ o1
-                 @ (parseExperienceBinary parseState 10 (fun () -> [], []))
+                 @ (parseExpressionBinary parseState 10 (fun () -> [], []))
                  @ [getOpByToken op]
             else
                 v1
-                @ (parseExperienceBinary parseState level1 (fun () -> 
+                @ (parseExpressionBinary parseState level1 (fun () -> 
                         ops2, [getOpByToken op]
                     ))
                 @ o1
 
-    let parseExperienceBinary2 (parseState: ParseState) =
-        let ops = parseExperienceBinary parseState 10 (fun () -> [], [])
+    let parseExpressionBinary2 (parseState: ParseState) =
+        let ops = parseExpressionBinary parseState 10 (fun () -> [], [])
         match parseState.currentToken with
             | RightParenthesesToken ->
                 ()
@@ -634,8 +646,8 @@ module rec Parser =
                 raise (Exception("园括号需要闭合"))
         ops
 
-    let parseExperienceBinarySquare (parseState: ParseState) =
-        let ops = parseExperienceBinary parseState 10 (fun () -> [], [])
+    let parseExpressionBinarySquare (parseState: ParseState) =
+        let ops = parseExpressionBinary parseState 10 (fun () -> [], [])
         match parseState.currentToken with
             | RightSquareToken ->
                 ()
@@ -643,7 +655,7 @@ module rec Parser =
                 raise (Exception("方括号需要闭合"))
         ops
 
-    let parseExperienceNewArray (parseState: ParseState) =
+    let parseExpressionNewArray (parseState: ParseState) =
         let ops = parseTuple parseState 0
         match parseState.moveNext() with
             | RightSquareToken ->
@@ -666,7 +678,7 @@ module rec Parser =
                     ops, index
 
 
-    let parseExperienceNewHashObject (parseState: ParseState) =
+    let parseExpressionNewHashObject (parseState: ParseState) =
         let ops = parseKv parseState 0
         match parseState.moveNext() with
             | RightBraceToken ->
@@ -675,27 +687,30 @@ module rec Parser =
                 raise (Exception("花括号需要闭合"))
         ops
 
-    let parseExperienceBinary (parseState: ParseState)  level (f1: unit -> Op list * Op list) : Op list =
+    let parseExpressionBinary (parseState: ParseState)  level (f1: unit -> Op list * Op list) : Op list =
         let token = parseState.moveNext()
         match token with
+            | LambdaToken ->
+                let ops = parseLambdaExpression parseState
+                parseExpressionBinary3 parseState ops f1 level
             | LeftBraceToken ->
-                let opsTuple, index = parseExperienceNewHashObject  parseState
+                let opsTuple, index = parseExpressionNewHashObject  parseState
                 let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "dict"; Get]  @ [Call (index*2)]
-                parseExperienceBinary3 parseState ops f1 level
+                parseExpressionBinary3 parseState ops f1 level
             | LeftSquareToken ->
-                let opsTuple, index = parseExperienceNewArray  parseState
+                let opsTuple, index = parseExpressionNewArray  parseState
                 let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "array"; Get]  @ [Call index]
-                parseExperienceBinary3 parseState ops f1 level
+                parseExpressionBinary3 parseState ops f1 level
             | LeftParenthesesToken ->
-                let ops = parseExperienceBinary2 parseState
-                parseExperienceBinary3 parseState ops f1 level
+                let ops = parseExpressionBinary2 parseState
+                parseExpressionBinary3 parseState ops f1 level
             | SemiToken ->
                 []
             | IdenToken x ->
                 match parseState.nextToken() with
                     | AddToken | MulToken | DiviToken | SubToken | PipeToken ->
                         let ops = getObjectByToken token
-                        parseExperienceBinary3 parseState ops f1 level
+                        parseExpressionBinary3 parseState ops f1 level
                     | DotToken ->
                         parseState.moveNext() |> ignore
                         let name = parseState.moveNext()
@@ -703,26 +718,26 @@ module rec Parser =
                             | IdenToken name -> 
                                 let p,c = tryParseCall parseState
                                 let ops = p @ [LoadConst (FpStringObject name);LoadVar x;Get] @ c
-                                parseExperienceBinary3 parseState ops f1 level
+                                parseExpressionBinary3 parseState ops f1 level
                             | LeftSquareToken ->
-                                let opsValue = parseExperienceBinarySquare  parseState
+                                let opsValue = parseExpressionBinarySquare  parseState
                                 let p,c = tryParseCall parseState
                                 let ops = p @ opsValue @ [LoadVar x] @ [Get] @ c
-                                parseExperienceBinary3 parseState ops f1 level
+                                parseExpressionBinary3 parseState ops f1 level
                             | _ ->
                                 raise (Exception "属性必须是字符串")
                     | _ ->
                         let p,c = tryParseCall parseState
                         let ops = p @ [LoadVar x] @ c
-                        parseExperienceBinary3 parseState ops f1 level
+                        parseExpressionBinary3 parseState ops f1 level
             | NumberToken _ | StringToken _ ->
                 let ops = getObjectByToken token
-                parseExperienceBinary3 parseState ops f1 level
+                parseExpressionBinary3 parseState ops f1 level
             | _ ->
                 []
 
-    let parseExperience  parseState =
-        parseExperienceBinary parseState 10 (fun () -> [], [])
+    let parseExpression  parseState =
+        parseExpressionBinary parseState 10 (fun () -> [], [])
 
     let parseStatement (parseState: ParseState): Op list = 
         match parseState.nextToken() with
@@ -733,7 +748,7 @@ module rec Parser =
             | BindToken ->
                 (parseBindStatement parseState) @ (parseStatement parseState)
             | _  ->
-                (parseExperience parseState) @ (parseStatement parseState)
+                (parseExpression parseState) @ (parseStatement parseState)
 
 
     let parseSourceElement text =
