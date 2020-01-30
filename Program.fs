@@ -166,9 +166,9 @@ type FpFunctionObject(argsNames: string list) =
                         let l2 = stack.Pop() :?> IFpObject
                         match l1.Type with
                             | ObjectCategory.FpStringObject ->
-                                FpStringObject.Add(l1 :?> FpStringObject ,l2 :?> FpStringObject) :> IFpObject
+                                FpStringObject.Add(l2 :?> FpStringObject ,l1 :?> FpStringObject) :> IFpObject
                             | ObjectCategory.FpNumberObject ->
-                                FpNumberObject.Add(l1 :?> FpNumberObject, l2 :?> FpNumberObject) :> IFpObject
+                                FpNumberObject.Add(l2 :?> FpNumberObject, l1 :?> FpNumberObject) :> IFpObject
                         |>  stack.Push
                         1
                     | JumpIfFalse x ->
