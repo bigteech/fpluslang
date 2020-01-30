@@ -3,12 +3,14 @@ let createdict k,v,m,n = {
     {k,v;m,n};
 }
 
-let mydict = createdict "1","2","3","4";
+let mydict = createdict "a","2","b","4";
 
-mydict.["1"] |> print;
-mydict.["3"] |> print;
+mydict.a |> print;
+mydict.b |> print;
 
-
+let dict2 = {"m",1;"n",2};
+dict2.m |> print;
+dict2.n |> print;
 
 let readfile path = {
     let p = ["read", "read2"];

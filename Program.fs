@@ -183,7 +183,7 @@ type MfsFunctionObject(argsNames: string list) =
                         1
                     | Call x ->
                         let f = stack.Pop() :?> IMfsCallable
-                        let p = [ for i in 1 .. x -> (stack.Pop() :?> IMfsObject) ]
+                        let p = [ for i in 1 .. x -> (stack.Pop() :?> IMfsObject) ] |> List.rev
                         stack.Push (f.Call p)
                         1
                     | Get ->
@@ -234,7 +234,7 @@ type PrintFunction () =
                         (p :?> MfsNumberObject).Value.ToString()
                     | _ ->
                         p.Type.ToString()
-            String.Join("", args |> List.rev |> List.map temp) |> printf "%s"
+            String.Join("", args |> List.map temp) |> printf "%s"
             upcast MfsNullObject()
 
     interface IMfsObject with 
@@ -294,7 +294,7 @@ type ArrayCreateFunction () =
     interface IMfsCallable with 
         member this.Call(args: IMfsObject list): IMfsObject =
             let ret = MfsArrayObject()
-            ret.Init (args |> List.rev) |> ignore
+            ret.Init (args) |> ignore
             upcast ret 
 
     interface IMfsObject with 
@@ -371,7 +371,7 @@ type ParseState with
 
 module Lexical = 
     let isWordChar a =
-        (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || a = '_' || a = '-' || a = '$'
+        (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || a = '_' || a = '-' || a = '$' || (a >= '0' && a <= '9')
 
     let rec getWord (text:string) index =
         if isWordChar text.[index] then
