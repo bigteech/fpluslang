@@ -36,6 +36,7 @@ type ObjectCategory =
     | FpBooleanObject = 3
     | FpFunctionObject = 4
     | FpNullObject = 5
+    | FpTupleObject = 5
 
 type IFpObject =
     abstract member Type: ObjectCategory
@@ -66,8 +67,10 @@ type Op =
     | JumpIfFalse of int
     | Jump of int
     | Store of String
-    | Call of int
+    | Call
+    | Zip
     | Function of Op list * string list
+    | Exit
 
 
 
@@ -120,6 +123,9 @@ type FpHashObject() =
             | _ ->
                 ()
 
+    member this.Values () = 
+        List.ofSeq kvs.Values
+
     member this.Get(p: string) =
             try
                 kvs.Item p
@@ -141,6 +147,23 @@ type FpHashObject() =
 let globalScope = new System.Collections.Generic.Dictionary<string, IFpObject>();
 
 
+type FpTupleObject()=
+    inherit FpHashObject();
+    
+    member this.Set m = 
+        raise (Exception "tuple 不能更改值")
+
+    member this.Values =
+        base.Values()
+
+    member this.Init(p: IFpObject list) = 
+        for i=0 to (p.Length-1) do 
+            base.Set(i.ToString(), p.[i])
+        FpTupleObject()
+
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpTupleObject
+
 type FpFunctionObject(argsNames: string list) = 
     let mutable oplst: Op list = []
 
@@ -154,7 +177,9 @@ type FpFunctionObject(argsNames: string list) =
         member this.Call(args: IFpObject list): IFpObject = 
             let stack = Collections.Stack()
             let mutable scope = new System.Collections.Generic.Dictionary<string, IFpObject>();
-            for i = 0 to (argsNames.Length - 1) do scope.Add(argsNames.[i], args.[i])
+            if argsNames.Length > 0 then
+                for i = 0 to (argsNames.Length - 1) do scope.Add(argsNames.[i], args.[i])
+
             let mutable index = 0
             let eval op =
                 match op with
@@ -182,10 +207,31 @@ type FpFunctionObject(argsNames: string list) =
                     | Store x ->
                         scope.Add(x, (stack.Pop() :?> IFpObject))
                         1
-                    | Call x ->
+                    | Call ->
                         let f = stack.Pop() :?> IFpCallable
-                        let p = [ for i in 1 .. x -> (stack.Pop() :?> IFpObject) ] |> List.rev
-                        stack.Push (f.Call p)
+                        let p = stack.Pop() :?> IFpObject
+                        if p.Type = ObjectCategory.FpTupleObject then
+                            let p2 = (p :?> FpTupleObject).Values
+                            stack.Push (f.Call p2)
+                        else
+                            stack.Push (f.Call [p])
+                        1
+                    | Zip ->
+                        let l1 = stack.Pop() :?> IFpObject
+                        let l2 = stack.Pop() :?> IFpObject
+                        let v1 = (match l1.Type with
+                            | ObjectCategory.FpTupleObject ->
+                                (l1 :?> FpTupleObject).Values
+                            | _ ->
+                                [l1])
+                        let v2 = (match l2.Type with
+                            | ObjectCategory.FpTupleObject ->
+                                (l2 :?> FpTupleObject).Values
+                            | _ ->
+                                [l2])
+                        let ret = FpTupleObject()
+                        ret.Init (v2 @ v1) |> ignore
+                        ret |>  stack.Push
                         1
                     | Get ->
                         let l1 = stack.Pop() :?> IFpHashable
@@ -218,6 +264,7 @@ type FpFunctionObject(argsNames: string list) =
                                 raise (Exception "字符串不能相乘")
                         |>  stack.Push
                         1
+            
             while index < oplst.Length do
                 index <- index + (eval (oplst.[index]))
             downcast stack.Pop()
@@ -308,7 +355,7 @@ type ArrayObject () =
     do
         base.Set("create", upcast ArrayCreateFunction())
 
-type HahsObjectCreateFunction () =
+type HashObjectCreateFunction () =
     interface IFpCallable with 
         member this.Call(args: IFpObject list): IFpObject =
             let ret = FpHashObject()
@@ -319,14 +366,14 @@ type HahsObjectCreateFunction () =
             upcast ret 
 
     interface IFpObject with 
-        member this.Type = ObjectCategory.FpHashObject
+        member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
 
 type HashObject () =
     inherit FpHashObject();
     do
-        base.Set("create", upcast HahsObjectCreateFunction())
+        base.Set("create", upcast HashObjectCreateFunction())
 
 
 globalScope.Add("print", PrintFunction())
@@ -335,12 +382,15 @@ globalScope.Add("array", ArrayObject())
 globalScope.Add("dict", HashObject())
 
 
-
+let maxLevel = 10 
 let getLevelByToken token =
     match token with 
-        | PipeToken -> 9
+        | PipeToken -> 3
         | AddToken -> 2
         | MulToken -> 1
+        | CommaToken -> 0
+        | _ ->
+            raise (Exception "异常的符号")
         
 
 
@@ -358,7 +408,7 @@ type ParseState with
         else
             z.index <- z.index + 1
             z.currentToken
-    member z.nextToken()=
+    member z.nextToken with get() =
             if z.index = (z.token.Length - 1) then
               Eof
             else
@@ -369,6 +419,10 @@ type ParseState with
     member z.pushToken x = z.token <-  z.token @ [x]
 
 
+type OpOrToken =
+    | Op of Op list
+    | Token of Token 
+    | Done of OpOrToken list
 
 module Lexical = 
     let isWordChar a =
@@ -490,48 +544,28 @@ module Grammer =
 
 let getObjectByToken token: Op list = 
     match token with
-        |  NumberToken x -> 
+        | NumberToken x -> 
             [LoadConst (FpNumberObject(x))]
         | StringToken x ->
             [LoadConst (FpStringObject(x))]
         | IdenToken x ->
             [LoadVar x]
-        | PipeToken ->
-            [Call 1]
         
 
 let getOpByToken token = 
     match token with
         |  MulToken  -> Mul
         |  AddToken -> Add
-        | PipeToken -> Call 1
+        |  PipeToken -> Call
+        |  CommaToken -> Zip
         
 
 module rec Parser =
-    let parseTuple (parseState: ParseState) index =
-        let token = parseState.nextToken()
-        match token with
-            | CommaToken ->
-                parseState.moveNext() |> ignore
-                parseTuple parseState (index)
-            | IdenToken _ | NumberToken _ | StringToken _ ->
-                parseState.moveNext() |> ignore
-                let c = getObjectByToken token
-                let a,b = parseTuple parseState (index+1)
-                (c @ a), b
-            | LeftParenthesesToken ->
-                parseState.moveNext() |> ignore
-                let c = parseExpressionBinary2 parseState
-                let a,b = parseTuple parseState (index+1)
-                (c @ a), (b)
-            | _ ->
-                [], index
-
     let parseParams (parseState: ParseState): string list = 
         let token = parseState.moveNext()
         match token with
             | IdenToken x->
-                match parseState.nextToken() with
+                match parseState.nextToken with
                     | CommaToken ->
                         parseState.moveNext() |> ignore
                         let m = parseParams parseState
@@ -542,15 +576,15 @@ module rec Parser =
                 raise (Exception "形参必须是合法变量名")
 
     let tryParseCall (parseState: ParseState) =
-        let p,index = parseTuple parseState 0
-        if index = 0 then
-            p, []
-        else
-            p, [Call index]
+        match parseState.nextToken with
+            | IdenToken _ | LeftBraceToken 
+            | LeftParenthesesToken | LeftSquareToken
+            | NumberToken _ | StringToken _ ->
+                (parseExpressionBinary parseState  |> sortExpressionBinary), [Call]
+            | _ ->
+                [], []
+        
 
-    let parseGet (parseState: ParseState) =
-        ()
-    
     let parseLambdaExpression (parseState: ParseState) =
         let ps = parseParams parseState
         parseState.moveNext() |> ignore
@@ -563,10 +597,10 @@ module rec Parser =
         parseState.moveNext() |> ignore
         match parseState.moveNext() with
             | IdenToken name ->
-                match parseState.nextToken() with
+                match parseState.nextToken with
                     | AssignToken ->
                         parseState.moveNext() |> ignore
-                        (parseExpressionBinary parseState 10 (fun () -> [], [])) @ [Store name]
+                        (parseExpressionBinary parseState  |> sortExpressionBinary) @ [Store name]
                     | IdenToken x ->
                         let ps = parseParams parseState
                         parseState.moveNext() |> ignore
@@ -580,12 +614,13 @@ module rec Parser =
                 raise (Exception("let需要名称"))
     let parseIfStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
-        let ops = parseExpressionBinary parseState 10 (fun () -> [], [])
-        match parseState.currentToken with
+        let ops = parseExpressionBinary parseState |> sortExpressionBinary
+        match parseState.nextToken with
             | LeftBraceToken ->
                 ()
             | _ ->
                 raise (Exception("if需要代码块"))
+        parseState.moveNext() |> ignore
         let opsBlock = parseStatement parseState
         match parseState.moveNext() with
             | RightBraceToken ->
@@ -606,39 +641,43 @@ module rec Parser =
                             ()
                         | _ ->
                             raise (Exception("if代码块需要闭合"))
-                    ops @ [JumpIfFalse (opsBlock.Length + 2)] @ opsBlock @ [Jump (opsElseBlock.Length + 1)] @ opsElseBlock
+                    ops 
+                    @ [JumpIfFalse (opsBlock.Length + 2)] 
+                    @ opsBlock 
+                    @ [Jump (opsElseBlock.Length + 1)] 
+                    @ opsElseBlock
                 | _ ->
                     ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
 
 
-    let parseExpressionBinary3 (parseState: ParseState) ops2 f1 level= 
-        let op = parseState.moveNext()
-        let v1,o1 = f1()
-        if op = SemiToken 
-            || op = Eof || op = RightParenthesesToken 
-            || op = LeftParenthesesToken || op = LeftBraceToken 
-            || op = RightBraceToken || op = CommaToken
-            || op = RightSquareToken then
-            v1
-            @ ops2
-            @ o1
+    let parseExpressionBinaryJoin (parseState: ParseState) ops= 
+        let token = parseState.moveNext()
+        if token = SemiToken 
+            || token = Eof 
+            || token = RightParenthesesToken 
+            || token = LeftParenthesesToken 
+            || token = LeftBraceToken 
+            || token = RightBraceToken
+            || token = RightSquareToken then
+            [Op ops]
         else
-            let level1 = getLevelByToken op
-            if level1 >= level then
-                v1
-                 @ ops2
-                 @ o1
-                 @ (parseExpressionBinary parseState 10 (fun () -> [], []))
-                 @ [getOpByToken op]
-            else
-                v1
-                @ (parseExpressionBinary parseState level1 (fun () -> 
-                        ops2, [getOpByToken op]
-                    ))
-                @ o1
+            [Op ops; Token token ] @ parseExpressionBinary parseState
 
-    let parseExpressionBinary2 (parseState: ParseState) =
-        let ops = parseExpressionBinary parseState 10 (fun () -> [], [])
+    let parseExpressionBinaryJoinCurrent (parseState: ParseState) ops= 
+        let token = parseState.currentToken
+        if token = SemiToken 
+            || token = Eof 
+            || token = RightParenthesesToken 
+            || token = LeftParenthesesToken 
+            || token = LeftBraceToken 
+            || token = RightBraceToken
+            || token = RightSquareToken then
+            [Op ops]
+        else
+            [Op ops; Token token ] @ parseExpressionBinary parseState
+
+    let parseExpressionBinaryChild (parseState: ParseState) =
+        let ops = parseExpressionBinary parseState  |> sortExpressionBinary
         match parseState.currentToken with
             | RightParenthesesToken ->
                 ()
@@ -647,7 +686,7 @@ module rec Parser =
         ops
 
     let parseExpressionBinarySquare (parseState: ParseState) =
-        let ops = parseExpressionBinary parseState 10 (fun () -> [], [])
+        let ops = parseExpressionBinary parseState  |> sortExpressionBinary
         match parseState.currentToken with
             | RightSquareToken ->
                 ()
@@ -656,8 +695,8 @@ module rec Parser =
         ops
 
     let parseExpressionNewArray (parseState: ParseState) =
-        let ops = parseTuple parseState 0
-        match parseState.moveNext() with
+        let ops = parseExpressionBinary parseState  |> sortExpressionBinary
+        match parseState.currentToken with
             | RightSquareToken ->
                 ()
             | _ ->
@@ -665,98 +704,197 @@ module rec Parser =
         ops
 
     let parseKv (parseState: ParseState) index =
-        let ops, idx = parseTuple parseState index
+        let ops = parseExpressionBinary parseState  |> sortExpressionBinary
         if ops.Length = 0 then
             ops, index
         else
-            match parseState.nextToken() with
+            match parseState.currentToken with
                 | SemiToken ->
-                    parseState.moveNext() |> ignore
-                    let m,n = parseKv parseState idx
-                    (ops @ m), n
+                    match parseState.nextToken with
+                        | RightBraceToken ->
+                            ops, (index+1)
+                        | _ ->
+                            let m,n = parseKv parseState (index+1)
+                            (ops @ m), n
                 | _ ->
-                    ops, index
+                    ops, (index+1)
 
 
     let parseExpressionNewHashObject (parseState: ParseState) =
-        let ops = parseKv parseState 0
+        let ops, index = parseKv parseState 0
         match parseState.moveNext() with
             | RightBraceToken ->
                 ()
             | _ ->
                 raise (Exception("花括号需要闭合"))
-        ops
+        if index > 1 then
+            ops @ [for x in [1 .. index-1] do yield Zip] 
+        else 
+            ops
 
-    let parseExpressionBinary (parseState: ParseState)  level (f1: unit -> Op list * Op list) : Op list =
-        let token = parseState.moveNext()
+    let sortExpressionBinary (ls: OpOrToken list): Op list = 
+        let rec sort (ls: OpOrToken list) level =
+            let index = ls |> List.tryFindIndex (fun x ->
+                match x with
+                    | Token y ->
+                        (getLevelByToken y) = level                      
+                    | _ ->
+                        false
+            )
+            match index with
+                | Some x ->
+                    match ls.[x] with
+                        | Token y ->
+                            let v1 = ls.[x-1];
+                            let v2 = ls.[x+1];
+                            sort (
+                                (ls.[0..x-2]) 
+                                @ [Done [v1; v2; Op [getOpByToken y]]]
+                                @ (ls.[x+2..ls.Length-1]) 
+                            ) level
+                        | _ -> raise (Exception "cant access")
+                | _ ->
+                    ls
+        let rec sortAll ls level =
+            if level <= maxLevel then
+                sortAll (sort ls level) (level+1)
+            else 
+                ls
+
+        let ret = ResizeArray()
+        
+        let rec unstruct x =
+            match x with
+                | Op t ->
+                    for k in t do
+                        ret.Add k
+                | Done t ->
+                    for k in t do
+                        unstruct k
+                | _ ->
+                    raise (Exception "")
+        let sorted = (sortAll ls 0)
+        if sorted.Length = 0 then
+            []
+        else
+            unstruct (sorted.[0])
+            ret |> List.ofSeq
+        
+
+        // [
+        //     for x in (sort ls 1) do
+        //         match x with
+        //             | Done y ->
+        //                 for m in y do yield m
+        //             | _ ->
+        //                 raise (Exception "有没有处理完成的Token")
+        // ]
+        
+
+    let parseExpressionBinary (parseState: ParseState) : OpOrToken list =
+        let token = parseState.nextToken
         match token with
             | LambdaToken ->
+                parseState.moveNext() |> ignore
                 let ops = parseLambdaExpression parseState
-                parseExpressionBinary3 parseState ops f1 level
+                parseExpressionBinaryJoin parseState ops
             | LeftBraceToken ->
-                let opsTuple, index = parseExpressionNewHashObject  parseState
-                let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "dict"; Get]  @ [Call (index*2)]
-                parseExpressionBinary3 parseState ops f1 level
+                parseState.moveNext() |> ignore
+                let opsTuple = parseExpressionNewHashObject  parseState
+                let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "dict"; Get]  @ [Call]
+                parseExpressionBinaryJoin parseState ops
             | LeftSquareToken ->
-                let opsTuple, index = parseExpressionNewArray  parseState
-                let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "array"; Get]  @ [Call index]
-                parseExpressionBinary3 parseState ops f1 level
+                parseState.moveNext() |> ignore
+                let opsTuple = parseExpressionNewArray  parseState
+                let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "array"; Get]  @ [Call]
+                parseExpressionBinaryJoin parseState ops
             | LeftParenthesesToken ->
-                let ops = parseExpressionBinary2 parseState
-                parseExpressionBinary3 parseState ops f1 level
+                parseState.moveNext() |> ignore
+                match parseState.nextToken with
+                    | RightParenthesesToken ->
+                        parseState.moveNext() |> ignore
+                        let ops = [LoadConst (FpTupleObject())]
+                        parseExpressionBinaryJoin parseState ops
+                    | _ ->
+                        let ops = parseExpressionBinaryChild parseState
+                        parseExpressionBinaryJoin parseState ops
             | SemiToken ->
+                parseState.moveNext() |> ignore
                 []
             | IdenToken x ->
-                match parseState.nextToken() with
-                    | AddToken | MulToken | DiviToken | SubToken | PipeToken ->
+                parseState.moveNext() |> ignore
+                match parseState.nextToken with
+                    | RightBraceToken ->
+                        [Op [LoadVar x]]
+                    | SemiToken ->
+                        parseState.moveNext() |> ignore
+                        [Op [LoadVar x]]
+                    | AddToken | MulToken | DiviToken | SubToken | PipeToken | CommaToken->
                         let ops = getObjectByToken token
-                        parseExpressionBinary3 parseState ops f1 level
+                        parseExpressionBinaryJoin parseState ops
                     | DotToken ->
                         parseState.moveNext() |> ignore
                         let name = parseState.moveNext()
                         match name with
                             | IdenToken name -> 
                                 let p,c = tryParseCall parseState
-                                let ops = p @ [LoadConst (FpStringObject name);LoadVar x;Get] @ c
-                                parseExpressionBinary3 parseState ops f1 level
+                                if p.Length = 0 then
+                                    let ops = [LoadConst (FpStringObject name);LoadVar x;Get]
+                                    parseExpressionBinaryJoin parseState ops
+                                else
+                                    let ops = p @ [LoadConst (FpStringObject name);LoadVar x;Get] @ c
+                                    [Op ops]
                             | LeftSquareToken ->
                                 let opsValue = parseExpressionBinarySquare  parseState
                                 let p,c = tryParseCall parseState
-                                let ops = p @ opsValue @ [LoadVar x] @ [Get] @ c
-                                parseExpressionBinary3 parseState ops f1 level
+                                if p.Length = 0 then
+                                    let ops = opsValue @ [LoadVar x] @ [Get]
+                                    parseExpressionBinaryJoin parseState ops
+                                else
+                                    let ops = p @ opsValue @ [LoadVar x] @ [Get] @ c
+                                    [Op ops]
                             | _ ->
                                 raise (Exception "属性必须是字符串")
                     | _ ->
                         let p,c = tryParseCall parseState
                         let ops = p @ [LoadVar x] @ c
-                        parseExpressionBinary3 parseState ops f1 level
+                        parseExpressionBinaryJoinCurrent parseState ops
             | NumberToken _ | StringToken _ ->
+                parseState.moveNext() |> ignore
                 let ops = getObjectByToken token
-                parseExpressionBinary3 parseState ops f1 level
+                parseExpressionBinaryJoin parseState ops
             | _ ->
                 []
 
     let parseExpression  parseState =
-        parseExpressionBinary parseState 10 (fun () -> [], [])
+        parseExpressionBinary parseState |> sortExpressionBinary
+
 
     let parseStatement (parseState: ParseState): Op list = 
-        match parseState.nextToken() with
-            | Eof | RightBraceToken ->
+        let rec parse () =
+            let m = (
+                match parseState.nextToken with
+                    | Eof | RightBraceToken ->
+                        [Exit]
+                    | IfToken ->
+                        (parseIfStatement parseState)
+                    | BindToken ->
+                        (parseBindStatement parseState)
+                    | _  ->
+                        (parseExpression parseState)
+            )
+            if m.Length = 1 && m.[0] = Exit then
                 []
-            | IfToken ->
-                (parseIfStatement parseState) @ (parseStatement parseState)
-            | BindToken ->
-                (parseBindStatement parseState) @ (parseStatement parseState)
-            | _  ->
-                (parseExpression parseState) @ (parseStatement parseState)
-
+            else 
+                m @ parse()
+        parse()
 
     let parseSourceElement text =
-         let parseState = {text=text+" ";index=(-1);op=[];token=[]}
-         Lexical.initToken parseState
-         let ops = parseStatement parseState
-         parseState.pushOps ops
-         parseState.op
+        let parseState = {text=text+" ";index=(-1);op=[];token=[]}
+        Lexical.initToken parseState
+        let ops = parseStatement parseState
+        parseState.pushOps ops
+        parseState.op
 
 module Vm = 
     let eval (f:IFpCallable) =
