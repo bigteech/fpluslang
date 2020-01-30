@@ -29,10 +29,10 @@ type Token =
     | Eof
 
 type ObjectCategory =
-    | HashObject = 0
+    | MfsHashObject = 0
     | MfsNumberObject = 1
     | MfsStringObject = 2
-    | BooleanObject = 3
+    | MfsBooleanObject = 3
     | MfsFunctionObject = 4
     | MfsNullObject = 5
 
@@ -133,7 +133,7 @@ type MfsHashObject() =
         member this.Set m =
             this.Set m
     interface IMfsObject with 
-        member this.Type = ObjectCategory.HashObject
+        member this.Type = ObjectCategory.MfsHashObject
         member this.IsTrue with get() = true
 
 
@@ -278,7 +278,7 @@ type FileHashObject () =
             raise (Exception "不能改变内置对象")
 
     interface IMfsObject with 
-        member this.Type = ObjectCategory.HashObject
+        member this.Type = ObjectCategory.MfsHashObject
         member this.IsTrue with get() = true
 
 
@@ -307,10 +307,31 @@ type ArrayObject () =
     do
         base.Set("create", upcast ArrayCreateFunction())
 
+type HahsObjectCreateFunction () =
+    interface IMfsCallable with 
+        member this.Call(args: IMfsObject list): IMfsObject =
+            let ret = MfsHashObject()
+            for i=0 to args.Length / 2 - 1 do
+                let k = args.[(i * 2)] :?> MfsStringObject
+                let v = args.[(i * 2) + 1]
+                ret.Set(k.Value,v)
+            upcast ret 
+
+    interface IMfsObject with 
+        member this.Type = ObjectCategory.MfsHashObject
+        member this.IsTrue with get() = true
+
+
+type HashObject () =
+    inherit MfsHashObject();
+    do
+        base.Set("create", upcast HahsObjectCreateFunction())
+
 
 globalScope.Add("print", PrintFunction())
 globalScope.Add("file", FileHashObject())
 globalScope.Add("array", ArrayObject())
+globalScope.Add("dict", HashObject())
 
 
 
@@ -509,6 +530,7 @@ module rec Parser =
             | IdenToken x->
                 match parseState.nextToken() with
                     | CommaToken ->
+                        parseState.moveNext() |> ignore
                         let m = parseParams parseState
                         ([x] @ m)
                     | _ ->
@@ -629,12 +651,40 @@ module rec Parser =
             | _ ->
                 raise (Exception("数组方括号需要闭合"))
         ops
+
+    let parseKv (parseState: ParseState) index =
+        let ops, idx = parseTuple parseState index
+        if ops.Length = 0 then
+            ops, index
+        else
+            match parseState.nextToken() with
+                | SemiToken ->
+                    parseState.moveNext() |> ignore
+                    let m,n = parseKv parseState idx
+                    (ops @ m), n
+                | _ ->
+                    ops, index
+
+
+    let parseExperienceNewHashObject (parseState: ParseState) =
+        let ops = parseKv parseState 0
+        match parseState.moveNext() with
+            | RightBraceToken ->
+                ()
+            | _ ->
+                raise (Exception("花括号需要闭合"))
+        ops
+
     let parseExperienceBinary (parseState: ParseState)  level (f1: unit -> Op list * Op list) : Op list =
         let token = parseState.moveNext()
         match token with
+            | LeftBraceToken ->
+                let opsTuple, index = parseExperienceNewHashObject  parseState
+                let ops = opsTuple @ [LoadConst (MfsStringObject "create"); LoadVar "dict"; Get]  @ [Call (index*2)]
+                parseExperienceBinary3 parseState ops f1 level
             | LeftSquareToken ->
                 let opsTuple, index = parseExperienceNewArray  parseState
-                let ops = opsTuple @ [LoadConst (MfsStringObject "create"); LoadVar "array"; Get]  @ [Call opsTuple.Length]
+                let ops = opsTuple @ [LoadConst (MfsStringObject "create"); LoadVar "array"; Get]  @ [Call index]
                 parseExperienceBinary3 parseState ops f1 level
             | LeftParenthesesToken ->
                 let ops = parseExperienceBinary2 parseState

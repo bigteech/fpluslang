@@ -1,6 +1,19 @@
+
+let createdict k,v,m,n = {
+    {k,v;m,n};
+}
+
+let mydict = createdict "1","2","3","4";
+
+mydict.["1"] |> print;
+mydict.["3"] |> print;
+
+
+
 let readfile path = {
     let p = ["read", "read2"];
     path |> file.[p.["0"]] |> print;
+    p.["1"] |> print;
     path |> file.[p.["0"]];
 }
 
