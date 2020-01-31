@@ -20,6 +20,7 @@ type Token =
     | SemiToken
     | CommaToken
     | PipeToken
+    | VirtualPipeToken
     | OrToken
     | BindToken
     | LeftParenthesesToken
@@ -41,11 +42,11 @@ let isBinaryOpToken token =
         | DiviToken
         | PipeToken
         | GtToken
+        | VirtualPipeToken
         | GteToken
         | LtToken
         | LteToken
-        | BindToken
-        | CommaToken ->
+        | BindToken ->
             true
         | _ ->
             false
@@ -58,7 +59,7 @@ type ObjectCategory =
     | FpBooleanObject = 3
     | FpFunctionObject = 4
     | FpNullObject = 5
-    | FpTupleObject = 5
+    | FpTupleObject = 6
 
 type IFpObject =
     abstract member Type: ObjectCategory
@@ -180,6 +181,14 @@ type FpBooleanObject(v: bool)=
 type FpTupleObject()=
     inherit FpHashObject();
     
+    let mutable freeze = false;
+
+    member this.Freeze () = 
+        freeze <- true
+
+    member this.IsFreeze () =
+        freeze
+
     member this.Set m = 
         raise (Exception "tuple 不能更改值")
 
@@ -209,7 +218,6 @@ type FpFunctionObject(argsNames: string list) =
             let mutable scope = new System.Collections.Generic.Dictionary<string, IFpObject>();
             if argsNames.Length > 0 then
                 for i = 0 to (argsNames.Length - 1) do scope.Add(argsNames.[i], args.[i])
-
             let mutable index = 0
             let eval op =
                 match op with
@@ -289,20 +297,20 @@ type FpFunctionObject(argsNames: string list) =
                             stack.Push (f.Call [p])
                         1
                     | Zip ->
-                        let l1 = stack.Pop() :?> IFpObject
                         let l2 = stack.Pop() :?> IFpObject
+                        let l1 = stack.Pop() :?> IFpObject
                         let v1 = (match l1.Type with
                             | ObjectCategory.FpTupleObject ->
-                                (l1 :?> FpTupleObject).Values
+                                let obj = (l1 :?> FpTupleObject)
+                                if obj.IsFreeze() then
+                                    [l1]
+                                else
+                                    obj.Values
                             | _ ->
                                 [l1])
-                        let v2 = (match l2.Type with
-                            | ObjectCategory.FpTupleObject ->
-                                (l2 :?> FpTupleObject).Values
-                            | _ ->
-                                [l2])
+                        
                         let ret = FpTupleObject()
-                        ret.Init (v2 @ v1) |> ignore
+                        ret.Init (v1 @ [l2]) |> ignore
                         ret |>  stack.Push
                         1
                     | Get ->
@@ -353,7 +361,7 @@ type PrintFunction () =
                     | ObjectCategory.FpNumberObject->
                         (p :?> FpNumberObject).Value.ToString()
                     | _ ->
-                        p.Type.ToString()
+                        "<" + p.Type.ToString() + ">"
             String.Join("", args |> List.map temp) |> printf "%s"
             upcast FpNullObject()
 
@@ -431,9 +439,11 @@ type HashObjectCreateFunction () =
     interface IFpCallable with 
         member this.Call(args: IFpObject list): IFpObject =
             let ret = FpHashObject()
-            for i=0 to args.Length / 2 - 1 do
-                let k = args.[(i * 2)] :?> FpStringObject
-                let v = args.[(i * 2) + 1]
+            
+            for i=0 to args.Length - 1 do
+                let t = args.[i] :?> FpTupleObject
+                let k = t.Values.[0] :?> FpStringObject
+                let v = t.Values.[1]
                 ret.Set(k.Value,v)
             upcast ret 
 
@@ -441,28 +451,44 @@ type HashObjectCreateFunction () =
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
+type TupleObjectCreateFunction () =
+    interface IFpCallable with 
+        member this.Call(args: IFpObject list): IFpObject =
+            let ret = FpTupleObject()
+            ret.Init (args) |> ignore
+            ret.Freeze()
+            upcast ret 
+
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpTupleObject
+        member this.IsTrue with get() = true
 
 type HashObject () =
     inherit FpHashObject();
     do
         base.Set("create", upcast HashObjectCreateFunction())
+type TupleObject () =
+    inherit FpHashObject();
+    do
+        base.Set("create", upcast TupleObjectCreateFunction())
 
 
 globalScope.Add("print", PrintFunction())
 globalScope.Add("file", FileHashObject())
 globalScope.Add("array", ArrayObject())
 globalScope.Add("dict", HashObject())
-
+globalScope.Add("tuple", TupleObject())
 
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 
-        | PipeToken -> 4
-        | GtToken | LtToken | GteToken | LteToken | BindToken -> 3
-        | AddToken -> 2
-        | SubToken -> 2
-        | MulToken -> 1
-        | DiviToken -> 1
+        | PipeToken -> 5
+        | GtToken | LtToken | GteToken | LteToken | BindToken -> 4
+        | AddToken -> 3
+        | SubToken -> 3
+        | MulToken -> 2
+        | DiviToken -> 2
+        | VirtualPipeToken -> 1
         | CommaToken -> 0
         | _ ->
             raise (Exception "异常的符号")
@@ -649,7 +675,7 @@ let getObjectByToken token: Op list =
 
 let getOpByToken token = 
     match token with
-        |  PipeToken -> Call
+        |  PipeToken | VirtualPipeToken-> Call
         |  CommaToken -> Zip
         |  MulToken  -> Mul
         |  AddToken -> Add
@@ -813,7 +839,7 @@ module rec Parser =
                         unstruct k
                 | _ ->
                     raise (Exception "")
-        let ret1 = sort ls 0
+        let ret1 = sort (sort ls 0) 1
         let sorted = (sortAll (joinCall(ret1)) 1)
         if sorted.Length = 0 then
             []
@@ -821,12 +847,13 @@ module rec Parser =
             unstruct (sorted.[0])
             ret |> List.ofSeq
 
-    let parseExpressionBinaryNodeIgnoreOp (parseState: ParseState)  : OpOrToken list =
-        parseExpressionBinaryNode parseState true
-
     let parseExpressionBinaryNode (parseState: ParseState) (ignoreOp: bool)  : OpOrToken list =
         let token = parseState.nextToken
         match token with
+            | CommaToken ->
+                parseState.moveNext() |> ignore
+                let ops = parseExpressionTuple parseState
+                [Token CommaToken] @ ops
             | IfToken ->
                 parseState.moveNext() |> ignore
                 let ops = parseIfExpression parseState
@@ -902,11 +929,46 @@ module rec Parser =
         except parseState RightSquareToken
         ops
 
+    let parseExpressionTuple (parseState: ParseState) =
+        let rec parse  ()=
+            let ops =  parseExpressionBinaryNode parseState true
+
+            if ops.Length = 0 then
+                ops
+            else
+                match parseState.nextToken with
+                    | CommaToken ->
+                        parseState.moveNext() |> ignore
+                        let m = parse ()
+                        (ops @ [Token CommaToken] @ m)
+                    | _ ->
+                        ops
+        let ops = parse ()
+        
+        ops @ [Token VirtualPipeToken] @ [Op [LoadConst (FpStringObject "create"); LoadVar "tuple"; Get]]
+
     let parseExpressionNewArray (parseState: ParseState) =
-        let opsTuple = parseExpression parseState
-        let ops = opsTuple @ [LoadConst (FpStringObject "create"); LoadVar "array"; Get]  @ [Call]
-        except parseState RightSquareToken
-        ops
+        let rec parse index =
+            let ops = parseExpression parseState
+            if ops.Length = 0 then
+                ops, index
+            else
+                match parseState.nextToken with
+                    | SemiToken ->
+                        parseState.moveNext() |> ignore
+                        let m,n = parse (index+1)
+                        (ops @ m), n
+                    | RightSquareToken ->
+                        ops, (index+1)
+                    | _ ->
+                        raise (Exception "右方括号需要闭合")
+        let ops, index = parse 0
+        exceptWithComment parseState RightSquareToken "右方括号需要闭合"
+        (if index > 1 then
+            ops @ [for x in [1 .. index-1] do yield Zip] 
+        else 
+            ops)
+        @ [LoadConst (FpStringObject "create"); LoadVar "array"; Get]  @ [Call]
 
     let parseKv (parseState: ParseState) index =
         let ops = parseExpression parseState
