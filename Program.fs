@@ -69,10 +69,8 @@ type Op =
     | Mul
     | Divi
     | Get
-    | Set
     | LoadConst of IFpObject
     | LoadVar of string
-    | Load of string
     | Assign
     | EndExp
     | Throw
