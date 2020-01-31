@@ -44,6 +44,7 @@ let isBinaryOpToken token =
         | GteToken
         | LtToken
         | LteToken
+        | BindToken
         | CommaToken ->
             true
         | _ ->
@@ -91,6 +92,7 @@ type Op =
     | Function of Op list * string list
     | Exit
     | Gte
+    | Eq
     | Lte
     | Gt
     | Lt
@@ -253,6 +255,12 @@ type FpFunctionObject(argsNames: string list) =
                         let l2 = stack.Pop() :?> FpNumberObject
                         let l1 = stack.Pop() :?> FpNumberObject
                         FpBooleanObject(l1.Value >= l2.Value)
+                        |>  stack.Push
+                        1
+                    | Eq ->
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        FpBooleanObject(l1.Value = l2.Value)
                         |>  stack.Push
                         1
                     | Lte ->
@@ -450,7 +458,7 @@ let maxLevel = 10
 let getLevelByToken token =
     match token with 
         | PipeToken -> 4
-        | GtToken | LtToken | GteToken | LteToken -> 3
+        | GtToken | LtToken | GteToken | LteToken | BindToken -> 3
         | AddToken -> 2
         | SubToken -> 2
         | MulToken -> 1
@@ -651,6 +659,7 @@ let getOpByToken token =
         | LtToken -> Lt
         | GteToken -> Gte
         | LteToken -> Lte
+        | BindToken -> Eq
 
 let except (parseState: ParseState) token =
     if parseState.moveNext() = token then
