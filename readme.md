@@ -2,9 +2,8 @@
 顾形思义，F#的精简版，是本人在武汉肺炎的时候无聊搞的一种船新的语言，全名Fpluslang。
 语法糖简单优美深得我心。
 ```f#
-
 let createdict k,v,m,n = {
-    {k,v;m,n;};
+    {k,v;m,n};
 }
 
 let mydict = createdict "a","2","b","4";
@@ -15,7 +14,7 @@ mydict.b
     |> fn x = { x + " i am lambda exp "; }
     |> print;
 
-let dict2 = {"m",1;"n",2;};
+let dict2 = {"m",1;"n",2};
 dict2.m |> print;
 dict2.n |> print;
 
@@ -26,13 +25,24 @@ let readfile path = {
     path |> file.[p.["0"]];
 }
 
-(readfile "./test.txt") |> print;
+readfile "./test.txt" |> print;
 
 let v = readfile "./test.txt";
 
-if v; {
+if v {
    print v;
 } else {
    print 2,(4+1),4;
 }
+
+
+let hf text = {
+    print text;
+}
+
+let hf2 x = {
+    x;
+}
+
+hf2 hf "test hf";
 ```
