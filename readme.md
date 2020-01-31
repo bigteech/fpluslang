@@ -42,11 +42,13 @@ if v {
 
 
 let hf text = {
-    print text;
+    text;
 }
 
 let hf2 x = {
-    x;
+    fun k = {
+        (x k) + "hf2";
+    }
 }
 
 // 连续调用

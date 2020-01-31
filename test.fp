@@ -34,22 +34,28 @@ if v {
    print v;
 } else {
    print 2,(4+1),4;
-}
+};
 
 
 let hf text = {
-    print text;
+    let m = if 0 {
+        "1";
+    } else {
+        "2";
+    };
+    m;
 }
 
 let hf2 x = {
-    x;
+    fn k = {
+        k + "hf2";
+    };
 }
+
 
 // 连续调用
 
-hf2 hf "
-    test hf
-    ";
+hf2 hf "test hf" |> print;
 
 
 // 没参数的函数

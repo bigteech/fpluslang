@@ -650,8 +650,7 @@ module rec Parser =
                         raise (Exception("let需要="))
             | _ ->
                 raise (Exception("let需要名称"))
-    let parseIfStatement (parseState: ParseState) =
-        parseState.moveNext() |> ignore
+    let parseIfExpression (parseState: ParseState) =
         let ops = parseExpressionBinaryNode parseState true |> sortExpressionBinary
         exceptWithComment parseState LeftBraceToken "if需要代码块"
         parseState.moveNext() |> ignore
@@ -750,6 +749,10 @@ module rec Parser =
     let parseExpressionBinaryNode (parseState: ParseState) (ignoreOp: bool)  : OpOrToken list =
         let token = parseState.nextToken
         match token with
+            | IfToken ->
+                parseState.moveNext() |> ignore
+                let ops = parseIfExpression parseState
+                [Op ops]
             | LambdaToken ->
                 parseState.moveNext() |> ignore
                 let ops = parseLambdaExpression parseState
@@ -864,8 +867,7 @@ module rec Parser =
                 match parseState.nextToken with
                     | Eof | RightBraceToken ->
                         [Exit]
-                    | IfToken ->
-                        (parseIfStatement parseState)
+                    
                     | BindToken ->
                         (parseBindStatement parseState)
                     | _  ->
