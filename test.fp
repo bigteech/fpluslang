@@ -11,8 +11,8 @@ let mydict = createdict "a","2","b","4";
 mydict.a |> print;
 
 // lambda表达式与管道
-mydict.b 
-    |> fn x = { x + " i am lambda exp "; }
+mydict.b,mydict.a
+    |> fn x,y = { x + " i am lambda exp " + y; }
     |> print;
 
 let dict2 = {"m",1;"n",2};
