@@ -48,3 +48,10 @@ let hf2 x = {
 // 连续调用
 
 hf2 hf "test hf";
+
+
+let hf3 () = {
+    print "空方法";
+}
+
+hf3 ();

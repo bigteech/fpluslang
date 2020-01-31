@@ -596,19 +596,31 @@ let exceptWithComment (parseState: ParseState) token comment =
 
 module rec Parser =
     let parseParams (parseState: ParseState): string list = 
-        let token = parseState.moveNext()
-        match token with
-            | IdenToken x->
-                match parseState.nextToken with
-                    | CommaToken ->
-                        parseState.moveNext() |> ignore
-                        let m = parseParams parseState
-                        ([x] @ m)
-                    | _ ->
-                        [x]
-            | _ ->
-                raise (Exception "形参必须是合法变量名")
+        let rec parse () =
+            let token = parseState.moveNext()
+            match token with
+                | LeftParenthesesToken ->
+                    parseState.moveNext() |> ignore
+                    exceptWithComment parseState RightParenthesesToken "无参数的函数需要空元组"
+                    []
+                | IdenToken x->
+                    match parseState.nextToken with
+                        | CommaToken ->
+                            parseState.moveNext() |> ignore
+                            let m = parse()
+                            ([x] @ m)
+                        | _ ->
+                            [x]
+                | _ ->
+                    raise (Exception "形参必须是合法变量名")
 
+        match parseState.nextToken with
+            | LeftParenthesesToken ->
+                parseState.moveNext() |> ignore
+                exceptWithComment parseState RightParenthesesToken "无参数的函数需要空元组"
+                []
+            | _ ->
+                parse()
 
     let parseLambdaExpression (parseState: ParseState) =
         let ps = parseParams parseState
@@ -626,13 +638,14 @@ module rec Parser =
                     | AssignToken ->
                         parseState.moveNext() |> ignore
                         (parseExpression parseState) @ [Store name]
-                    | IdenToken x ->
+                    | IdenToken _ | LeftParenthesesToken ->
                         let ps = parseParams parseState
                         parseState.moveNext() |> ignore
                         parseState.moveNext() |> ignore
                         let ret = [Function ((parseStatement parseState), ps); Store name]
                         parseState.moveNext() |> ignore
                         ret
+                    
                     | _ ->
                         raise (Exception("let需要="))
             | _ ->
@@ -842,7 +855,7 @@ module rec Parser =
 
     let parseExpressionInStatement  parseState =
         let ops = parseExpression parseState
-        except parseState SemiToken
+        exceptWithComment parseState SemiToken "表达式需要;结尾"
         ops
 
     let parseStatement (parseState: ParseState): Op list = 
