@@ -28,6 +28,10 @@ type Token =
     | RightSquareToken
     | LambdaToken
     | Eof
+    | GtToken
+    | GteToken
+    | LtToken
+    | LteToken
 
 let isBinaryOpToken token =
     match token with 
@@ -36,6 +40,10 @@ let isBinaryOpToken token =
         | MulToken
         | DiviToken
         | PipeToken
+        | GtToken
+        | GteToken
+        | LtToken
+        | LteToken
         | CommaToken ->
             true
         | _ ->
@@ -82,7 +90,10 @@ type Op =
     | Zip
     | Function of Op list * string list
     | Exit
-
+    | Gte
+    | Lte
+    | Gt
+    | Lt
 
 
 
@@ -158,6 +169,12 @@ type FpHashObject() =
 let globalScope = new System.Collections.Generic.Dictionary<string, IFpObject>();
 
 
+type FpBooleanObject(v: bool)=
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpBooleanObject
+        member this.IsTrue = v
+
+
 type FpTupleObject()=
     inherit FpHashObject();
     
@@ -206,6 +223,42 @@ type FpFunctionObject(argsNames: string list) =
                             | ObjectCategory.FpNumberObject ->
                                 FpNumberObject.Add(l2 :?> FpNumberObject, l1 :?> FpNumberObject) :> IFpObject
                         |>  stack.Push
+                        1
+                    | Sub ->
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        (l1.Value - l2.Value) |>  stack.Push
+                        1
+                    | Mul ->
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        (l1.Value * l2.Value) |>  stack.Push
+                        1
+                    | Divi ->
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        (l1.Value / l2.Value) |>  stack.Push
+                        1
+                    | Gt ->
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        FpBooleanObject(l1.Value > l2.Value) |>  stack.Push
+                        1
+                    | Lt ->
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        FpBooleanObject(l1.Value < l2.Value) |>  stack.Push
+                        1
+                    | Gte ->
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        FpBooleanObject(l1.Value >= l2.Value)
+                        |>  stack.Push
+                        1
+                    | Lte ->
+                        let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
+                        FpBooleanObject(l1.Value <= l2.Value) |>  stack.Push
                         1
                     | JumpIfFalse x ->
                         let l1 = stack.Pop() :?> IFpObject
@@ -396,9 +449,12 @@ globalScope.Add("dict", HashObject())
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 
-        | PipeToken -> 3
+        | PipeToken -> 4
+        | GtToken | LtToken | GteToken | LteToken -> 3
         | AddToken -> 2
+        | SubToken -> 2
         | MulToken -> 1
+        | DiviToken -> 1
         | CommaToken -> 0
         | _ ->
             raise (Exception "异常的符号")
@@ -511,6 +567,16 @@ module Lexical =
                       LeftSquareToken, (index+1)
                   | ']' ->
                       RightSquareToken, (index+1)
+                  | '>' ->
+                      if text.[index+1] = '=' then
+                        GteToken, (index+2)
+                      else
+                        GtToken, (index+1)
+                  | '<' ->
+                      if text.[index+1] = '=' then
+                        LteToken, (index+2)
+                      else
+                        LtToken, (index+1)
                   | '.' ->
                       DotToken, (index+1)
                   | '+' ->
@@ -575,10 +641,16 @@ let getObjectByToken token: Op list =
 
 let getOpByToken token = 
     match token with
-        |  MulToken  -> Mul
-        |  AddToken -> Add
         |  PipeToken -> Call
         |  CommaToken -> Zip
+        |  MulToken  -> Mul
+        |  AddToken -> Add
+        | SubToken -> Sub
+        | DiviToken -> Divi
+        | GtToken -> Gt
+        | LtToken -> Lt
+        | GteToken -> Gte
+        | LteToken -> Lte
 
 let except (parseState: ParseState) token =
     if parseState.moveNext() = token then
@@ -651,7 +723,6 @@ module rec Parser =
     let parseIfExpression (parseState: ParseState) =
         let ops = parseExpressionBinaryNode parseState true |> sortExpressionBinary
         exceptWithComment parseState LeftBraceToken "if需要代码块"
-        parseState.moveNext() |> ignore
         let opsBlock = parseStatement parseState
         exceptWithComment parseState RightBraceToken "if代码块需要闭合"
         match parseState.moveNext() with
