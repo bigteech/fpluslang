@@ -15,8 +15,8 @@ let mydict = createdict "a","2","b","4";
 mydict.a |> print;
 
 // lambda表达式与管道
-mydict.b 
-    |> fn x = { x + " i am lambda exp "; }
+mydict.b,mydict.a
+    |> fn x,y = { x + " i am lambda exp " + y; }
     |> print;
 
 let dict2 = {"m",1;"n",2};
@@ -51,5 +51,17 @@ let hf2 x = {
 
 // 连续调用
 
-hf2 hf "test hf";
+hf2 hf "
+    test hf
+    ";
+
+
+// 没参数的函数
+let hf3 () = {
+    print "
+        空方法
+    ";
+}
+
+hf3 ();
 ```

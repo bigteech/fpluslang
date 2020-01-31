@@ -47,11 +47,16 @@ let hf2 x = {
 
 // 连续调用
 
-hf2 hf "test hf";
+hf2 hf "
+    test hf
+    ";
 
 
+// 没参数的函数
 let hf3 () = {
-    print "空方法";
+    print "
+        空方法
+    ";
 }
 
 hf3 ();
