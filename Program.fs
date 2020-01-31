@@ -10,7 +10,7 @@ type Token =
     | RightBraceToken
     | IfToken
     | ElseToken
-    | BindToken
+    | LetToken
     | IdenToken of string
     | DotToken
     | AddToken
@@ -21,7 +21,7 @@ type Token =
     | CommaToken
     | PipeToken
     | OrToken
-    | AssignToken
+    | BindToken
     | LeftParenthesesToken
     | RightParenthesesToken
     | LeftSquareToken
@@ -470,7 +470,7 @@ module Lexical =
           | "else" ->
               ElseToken, 4
           | "let" ->
-              BindToken, 3
+              LetToken, 3
           | "fn" ->
               LambdaToken, 2
           | _ ->
@@ -518,7 +518,7 @@ module Lexical =
                   | '+' ->
                       AddToken, (index+1)
                   | '=' ->
-                      AssignToken, (index+1)
+                      BindToken, (index+1)
                   | '-' ->
                       SubToken, (index+1)
                   | '/' ->
@@ -635,7 +635,7 @@ module rec Parser =
         match parseState.moveNext() with
             | IdenToken name ->
                 match parseState.nextToken with
-                    | AssignToken ->
+                    | BindToken ->
                         parseState.moveNext() |> ignore
                         (parseExpression parseState) @ [Store name]
                     | IdenToken _ | LeftParenthesesToken ->
@@ -868,7 +868,7 @@ module rec Parser =
                     | Eof | RightBraceToken ->
                         [Exit]
                     
-                    | BindToken ->
+                    | LetToken ->
                         (parseBindStatement parseState)
                     | _  ->
                         (parseExpressionInStatement parseState)
