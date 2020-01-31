@@ -2,14 +2,19 @@
 顾形思义，F#的精简版，是本人在武汉肺炎的时候无聊搞的一种船新的语言，全名Fpluslang。
 语法糖简单优美深得我心。
 ```f#
+// 函数声明
 let createdict k,v,m,n = {
+    // 字典
     {k,v;m,n};
 }
 
+// 函数调用
 let mydict = createdict "a","2","b","4";
 
+// 管道调用
 mydict.a |> print;
 
+// lambda表达式与管道
 mydict.b 
     |> fn x = { x + " i am lambda exp "; }
     |> print;
@@ -43,6 +48,8 @@ let hf text = {
 let hf2 x = {
     x;
 }
+
+// 连续调用
 
 hf2 hf "test hf";
 ```

@@ -457,6 +457,12 @@ module Lexical =
         else
             getString text (index + 1)
 
+    let rec getComment (text: string ) index =
+        if text.[index] = '\n' then
+            (index+1)
+        else
+            getComment text (index + 1)
+
     let getKeyWord text=
         match text with
           | "if" ->
@@ -516,7 +522,11 @@ module Lexical =
                   | '-' ->
                       SubToken, (index+1)
                   | '/' ->
-                      DiviToken, (index+1)
+                      if text.[index+1] = '/' then
+                        let n = getComment text (index+2)
+                        nextToken parseState n
+                      else
+                        DiviToken, (index+1)
                   | '*' ->
                       MulToken, (index+1)
                   | ' ' ->
@@ -868,7 +878,7 @@ module Vm =
 
 [<EntryPoint>]
 let main argv =
-   let ops = Parser.parseSourceElement (String.Join("", IO.File.ReadLines("./test.fp")))
+   let ops = Parser.parseSourceElement (String.Join("\n", IO.File.ReadLines("./test.fp")))
    let f = FpFunctionObject([])
    f.PushToOpList ops
    Vm.eval f |> ignore
