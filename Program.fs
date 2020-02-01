@@ -439,6 +439,30 @@ type ArrayObject () =
     do
         base.Set("create", upcast ArrayCreateFunction())
         base.Set("map", ArrayObject.Map())
+        base.Set("each", ArrayObject.Each())
+
+    static member Each () = 
+        let fn (f : IFpObject list) = 
+            let f1 = f.[0] :?> IFpCallable
+            { 
+                new IFpCallable with
+                    member this.Type = ObjectCategory.FpFunctionObject
+                    member this.IsTrue with get() = true
+                    member this.Call (p: IFpObject list) =
+                        let ls = p.[0] :?> FpArrayObject
+                        for x in ls.Values() do
+                            f1.Call [x] |> ignore 
+                        FpNullObject() :> IFpObject
+            } :> IFpObject
+        (
+            {
+                new IFpCallable with 
+                    member this.Type = ObjectCategory.FpFunctionObject
+                    member this.IsTrue with get() = true
+                    member x.Call (p: IFpObject list) = fn p
+            }
+        ) :> IFpObject
+
     static member Map () = 
         let fn (f : IFpObject list) = 
             let f1 = f.[0] :?> IFpCallable
