@@ -66,9 +66,11 @@ type IFpObject =
     abstract member IsTrue: bool
 
 type IFpCallable =
+    inherit IFpObject
     abstract member Call: (IFpObject list) -> IFpObject
 
 type IFpHashable =
+    inherit IFpObject
     abstract member Get: (string) -> IFpObject
     abstract member Set: (string * IFpObject) -> unit
 
@@ -412,11 +414,11 @@ type FileHashObject () =
 
 type FpArrayObject()=
     inherit FpHashObject();
-
+    
     member this.Init(p: IFpObject list) = 
         for i=0 to (p.Length-1) do 
             base.Set(i.ToString(), p.[i])
-        FpArrayObject()
+        ()
 
 type ArrayCreateFunction () =
     interface IFpCallable with 
@@ -434,6 +436,33 @@ type ArrayObject () =
     inherit FpHashObject();
     do
         base.Set("create", upcast ArrayCreateFunction())
+        base.Set("map", ArrayObject.Map())
+    static member Map () = 
+        let fn (f : IFpObject list) = 
+            let f1 = f.[0] :?> IFpCallable
+            { 
+                new IFpCallable with
+                    member this.Type = ObjectCategory.FpFunctionObject
+                    member this.IsTrue with get() = true
+                    member this.Call (p: IFpObject list) =
+                        let ret = FpArrayObject()
+                        let ls = p.[0] :?> FpArrayObject
+                        let ret2 = ls.Values() |> List.map (fun x -> 
+                                f1.Call [x]
+                            ) 
+                        ret.Init ret2
+                        upcast ret
+            } :> IFpObject
+        (
+            {
+                new IFpCallable with 
+                    member this.Type = ObjectCategory.FpFunctionObject
+                    member this.IsTrue with get() = true
+                    member x.Call (p: IFpObject list) = fn p
+            }
+        ) :> IFpObject
+    
+
 
 type HashObjectCreateFunction () =
     interface IFpCallable with 
@@ -475,7 +504,7 @@ type TupleObject () =
 
 globalScope.Add("print", PrintFunction())
 globalScope.Add("file", FileHashObject())
-globalScope.Add("array", ArrayObject())
+globalScope.Add("list", ArrayObject())
 globalScope.Add("dict", HashObject())
 globalScope.Add("tuple", TupleObject())
 
@@ -948,27 +977,23 @@ module rec Parser =
         ops @ [Token VirtualPipeToken] @ [Op [LoadConst (FpStringObject "create"); LoadVar "tuple"; Get]]
 
     let parseExpressionNewArray (parseState: ParseState) =
-        let rec parse index =
-            let ops = parseExpression parseState
+        let rec parse () =
+            let ops = parseExpressionBinary parseState
             if ops.Length = 0 then
-                ops, index
+                ops
             else
                 match parseState.nextToken with
                     | SemiToken ->
                         parseState.moveNext() |> ignore
-                        let m,n = parse (index+1)
-                        (ops @ m), n
+                        let m = parse ()
+                        ops @ [Token CommaToken] @ m
                     | RightSquareToken ->
-                        ops, (index+1)
+                        ops
                     | _ ->
                         raise (Exception "右方括号需要闭合")
-        let ops, index = parse 0
+        let ops = parse ()
         exceptWithComment parseState RightSquareToken "右方括号需要闭合"
-        (if index > 1 then
-            ops @ [for x in [1 .. index-1] do yield Zip] 
-        else 
-            ops)
-        @ [LoadConst (FpStringObject "create"); LoadVar "array"; Get]  @ [Call]
+        (ops |> sortExpressionBinary) @ [LoadConst (FpStringObject "create"); LoadVar "list"; Get]  @ [Call]
 
     let parseKv (parseState: ParseState) index =
         let ops = parseExpression parseState
