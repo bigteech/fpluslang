@@ -317,9 +317,11 @@ type FpFunctionObject(argsNames: string list) =
                         1
                     | Get ->
                         let l1 = stack.Pop() :?> IFpHashable
-                        let l2 = stack.Pop() :?> FpStringObject
-
-                        stack.Push (l1.Get l2.Value)
+                        let l2 = stack.Pop() :?> IFpObject
+                        if l2.Type = ObjectCategory.FpStringObject then
+                            stack.Push (l1.Get (l2 :?> FpStringObject).Value)
+                        else
+                            stack.Push (l1.Get ((l2 :?> FpNumberObject).Value.ToString()))
                         1
                     | LoadVar x ->
                         try
