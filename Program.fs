@@ -440,6 +440,17 @@ type ArrayObject () =
         base.Set("create", upcast ArrayCreateFunction())
         base.Set("map", ArrayObject.Map())
         base.Set("each", ArrayObject.Each())
+        base.Set("length", ArrayObject.Length())
+
+    static member Length () =
+        { 
+            new IFpCallable with
+                member this.Type = ObjectCategory.FpFunctionObject
+                member this.IsTrue with get() = true
+                member this.Call (p: IFpObject list) =
+                    FpNumberObject(p.Length) :> IFpObject
+        } :> IFpObject
+        
 
     static member Each () = 
         let fn (f : IFpObject list) = 
