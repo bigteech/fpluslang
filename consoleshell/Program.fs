@@ -49,7 +49,7 @@ addGlobalObject "file" (FileHashObject())
 
 let main () =
    let ops = Parser.parseSourceElement (String.Join("\n", IO.File.ReadLines("./test.fp")))
-   let f = FpFunctionObject([])
+   let f = FpFunctionObject([], (fun x -> None))
    f.PushToOpList ops
    Vm.init ()
    Vm.eval f |> ignore

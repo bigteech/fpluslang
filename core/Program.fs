@@ -224,7 +224,7 @@ type FpTupleObject()=
     interface IFpObject with 
         member this.Type = ObjectCategory.FpTupleObject
 
-type FpFunctionObject(argsNames: string list) = 
+type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject option) = 
     let mutable oplst: Op list = []
 
     member this.OpList with get() = oplst
@@ -240,6 +240,20 @@ type FpFunctionObject(argsNames: string list) =
             if argsNames.Length > 0 then
                 for i = 0 to (argsNames.Length - 1) do scope.Add(argsNames.[i], args.[i])
             let mutable index = 0
+            let getVarForChind name = 
+                try
+                    Some (scope.[name])
+                with
+                    | _ ->
+                        getClosureVar name
+
+            let getVarByName name = 
+                match (getVarForChind name) with
+                    | Some x ->
+                        x
+                    | _ ->
+                        globalScope.[name]
+                
             let eval op =
                 match op with
                     | LoadConst x ->
@@ -344,15 +358,10 @@ type FpFunctionObject(argsNames: string list) =
                             stack.Push (l1.Get ((l2 :?> FpNumberObject).Value.ToString()))
                         1
                     | LoadVar x ->
-                        try
-                            stack.Push (scope.Item(x))
-                        with
-                            | _ ->
-                                stack.Push (globalScope.Item(x))
+                        stack.Push (getVarByName x)
                         1
-
                     | Function (x, y) ->
-                        let f = FpFunctionObject(y)
+                        let f = FpFunctionObject(y, getVarForChind)
                         f.PushToOpList x
                         stack.Push f
                         1
