@@ -1,0 +1,1 @@
+globalScope.Add("file", FileHashObject())
