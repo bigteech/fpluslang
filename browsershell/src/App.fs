@@ -26,5 +26,6 @@ fetch "./main.fp" [] // use the fetch api to load our resource
         let ops = Parser.parseSourceElement txt
         let f = FpFunctionObject([])
         f.PushToOpList ops
+        Vm.init ()
         Vm.eval f |> ignore)
     |> ignore
