@@ -843,7 +843,9 @@ globalScope.Add("dict", HashObject())
 globalScope.Add("tuple", TupleObject())
 globalScope.Add("string", StringObject())
 
-
+let addGlobalObject x y =
+    globalScope.Add(x, y)
+    
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 

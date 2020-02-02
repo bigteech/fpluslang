@@ -44,8 +44,7 @@ type FileHashObject () =
         member this.Type = ObjectCategory.FpHashObject
         member this.IsTrue with get() = true
 
-
-globalScope.Add("file", FileHashObject())
+addGlobalObject "file" (FileHashObject())
 
 
 [<EntryPoint>]
