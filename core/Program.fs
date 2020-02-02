@@ -190,7 +190,7 @@ type FpHashObject() =
         member this.IsTrue with get() = true
 
 
-let globalScope = new System.Collections.Generic.Dictionary<string, IFpObject>();
+let mutable globalScope = new System.Collections.Generic.Dictionary<string, IFpObject>();
 
 
 type FpBooleanObject(v: bool)=
@@ -373,8 +373,6 @@ type FpFunctionObject(argsNames: string list) =
                 index <- index + (eval (oplst.[index]))
             downcast stack.Pop()
 
-    
-
 type PrintFunction () =
     interface IFpCallable with 
         member this.Call(args: IFpObject list): IFpObject =
@@ -402,7 +400,7 @@ type FpArrayObject()=
             base.Set(i.ToString(), p.[i])
         ()
 
-let ArrayCreateFunction  =
+let ArrayCreateFunction  () =
     {
         new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
@@ -411,14 +409,12 @@ let ArrayCreateFunction  =
                 upcast ret 
             member this.Type = ObjectCategory.FpFunctionObject
             member this.IsTrue with get() = true
-    }
-    
-
+    } :> IFpObject
 
 type ArrayObject () =
     inherit FpHashObject();
     do
-        base.Set("create", upcast ArrayCreateFunction)
+        base.Set("create", ArrayCreateFunction())
         base.Set("map", ArrayObject.Map)
         base.Set("each", ArrayObject.Each)
         base.Set("length", ArrayObject.Length)
@@ -542,7 +538,7 @@ type ArrayObject () =
         )()
 
 
-let HashObjectCreateFunction  =
+let HashObjectCreateFunction () =
     {
          new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
@@ -560,7 +556,7 @@ let HashObjectCreateFunction  =
     }
     
 
-let TupleObjectCreateFunction  =
+let TupleObjectCreateFunction () =
     {
         new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
@@ -577,8 +573,7 @@ type HashObject () =
     inherit FpHashObject();
     
     do
-        base.Set("create", upcast HashObjectCreateFunction)
-        
+        base.Set("create", upcast HashObjectCreateFunction())
         base.Set("keys", HashObject.Keys)
         base.Set("values", HashObject.Values)
         base.Set("count", HashObject.Count)
@@ -655,7 +650,7 @@ type HashObject () =
 type TupleObject () =
     inherit FpHashObject();
     do
-        base.Set("create", upcast TupleObjectCreateFunction)
+        base.Set("create", upcast TupleObjectCreateFunction())
 type StringObject () =
     inherit FpHashObject();
     do
@@ -837,15 +832,13 @@ type StringObject () =
             ) :> IFpObject
         )()
 
-globalScope.Add("print", PrintFunction())
-globalScope.Add("list", ArrayObject())
-globalScope.Add("dict", HashObject())
-globalScope.Add("tuple", TupleObject())
-globalScope.Add("string", StringObject())
+
 
 let addGlobalObject x y =
+    if isNull globalScope then
+        globalScope <- new System.Collections.Generic.Dictionary<string, IFpObject>();
     globalScope.Add(x, y)
-    
+
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 
@@ -1390,6 +1383,13 @@ module rec Parser =
         parseState.op
 
 module Vm = 
+    let init () =
+        globalScope.Add("print", PrintFunction())
+        globalScope.Add("list", ArrayObject())
+        globalScope.Add("dict", HashObject())
+        globalScope.Add("tuple", TupleObject())
+        globalScope.Add("string", StringObject())
+
     let eval (f:IFpCallable) =
         f.Call []
 

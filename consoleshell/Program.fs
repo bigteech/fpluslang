@@ -47,10 +47,12 @@ type FileHashObject () =
 addGlobalObject "file" (FileHashObject())
 
 
-[<EntryPoint>]
-let main argv =
+let main () =
    let ops = Parser.parseSourceElement (String.Join("\n", IO.File.ReadLines("./test.fp")))
    let f = FpFunctionObject([])
    f.PushToOpList ops
+   Vm.init ()
    Vm.eval f |> ignore
    0
+
+main () |> ignore

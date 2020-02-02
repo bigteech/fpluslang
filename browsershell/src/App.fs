@@ -6,7 +6,7 @@ open Fable.Import
 open Fp
 
 
-let AlertFunction =
+let AlertFunction ()=
     {
         new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
@@ -18,7 +18,7 @@ let AlertFunction =
             member this.IsTrue with get() = true
     }
 
-addGlobalObject "alert" AlertFunction
+addGlobalObject "alert" (AlertFunction())
 
 fetch "./main.fp" [] // use the fetch api to load our resource
     |> Promise.bind (fun res -> res.text()) // get the resul
