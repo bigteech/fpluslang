@@ -700,6 +700,36 @@ type StringObject () =
         base.Set("charAt", StringObject.charAt )
         base.Set("startsWith", StringObject.StartsWith )
         base.Set("endsWith", StringObject.EndsWith )
+        base.Set("trimStart", StringObject.TrimStart )
+        base.Set("trimEnd", StringObject.TrimEnd )
+
+    static member TrimEnd =
+        (fun () ->  
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (f: IFpObject list) = 
+                            let f1 = f.[0] :?> FpStringObject
+                            FpStringObject(f1.Value.TrimEnd()) :> IFpObject
+                }
+            ) :> IFpObject
+        )()
+
+    static member TrimStart =
+        (fun () ->  
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (f: IFpObject list) = 
+                            let f1 = f.[0] :?> FpStringObject
+                            FpStringObject(f1.Value.TrimStart()) :> IFpObject
+                }
+            ) :> IFpObject
+        )()
 
     static member EndsWith =
         (fun () ->  
