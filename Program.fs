@@ -607,6 +607,7 @@ let TupleObjectCreateFunction  =
             member this.IsTrue with get() = true
     }
 
+
 type HashObject () =
     inherit FpHashObject();
     
@@ -690,13 +691,164 @@ type TupleObject () =
     inherit FpHashObject();
     do
         base.Set("create", upcast TupleObjectCreateFunction)
+type StringObject () =
+    inherit FpHashObject();
+    do
+        base.Set("split", StringObject.Split)
+        base.Set("join", StringObject.Join )
+        base.Set("replace", StringObject.Replace )
+        base.Set("charAt", StringObject.charAt )
+        base.Set("startsWith", StringObject.StartsWith )
+        base.Set("endsWith", StringObject.EndsWith )
 
+    static member EndsWith =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpStringObject
+                            FpBooleanObject(ls.Value.EndsWith(f1.Value)) :> IFpObject
+
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
+    static member StartsWith =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpStringObject
+                            FpBooleanObject(ls.Value.StartsWith(f1.Value)) :> IFpObject
+
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
+    static member charAt =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpNumberObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpStringObject
+                            FpStringObject(ls.Value.[f1.Value].ToString()) :> IFpObject
+
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
+    static member Replace =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                let f2 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpStringObject
+                            FpStringObject(ls.Value.Replace(f1.Value, f2.Value)) :> IFpObject
+
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
+    static member Split =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpStringObject
+                            let ret = FpArrayObject()
+                            let ls2 = (ls.Value).Split (f1.Value)
+                            ret.Init ([for x in ls2 do yield (FpStringObject x)])
+                            ret :> IFpObject
+
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
+    static member Join =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpArrayObject
+                            FpStringObject (String.Join(f1.Value, ls)) :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
 
 globalScope.Add("print", PrintFunction())
 globalScope.Add("file", FileHashObject())
 globalScope.Add("list", ArrayObject())
 globalScope.Add("dict", HashObject())
 globalScope.Add("tuple", TupleObject())
+globalScope.Add("string", StringObject())
+
 
 let maxLevel = 10 
 let getLevelByToken token =
