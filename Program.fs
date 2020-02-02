@@ -150,8 +150,17 @@ type FpHashObject() =
             | _ ->
                 ()
 
+    member this.Count () = 
+        kvs.Count
+
+    member this.ContainsKey (p: string) = 
+        kvs.ContainsKey p
+
     member this.Values () = 
         List.ofSeq kvs.Values
+
+    member this.Keys () = 
+        List.ofSeq kvs.Keys
 
     member this.Get(p: string) =
             try
@@ -600,8 +609,83 @@ let TupleObjectCreateFunction  =
 
 type HashObject () =
     inherit FpHashObject();
+    
     do
         base.Set("create", upcast HashObjectCreateFunction)
+        
+        base.Set("keys", HashObject.Keys)
+        base.Set("values", HashObject.Values)
+        base.Set("count", HashObject.Count)
+        base.Set("contain", HashObject.ContainsKey)
+    
+    static member ContainsKey = 
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpArrayObject
+                            (FpBooleanObject(ls.ContainsKey f1.Value)) :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
+
+    static member Count = 
+        (fun () ->  
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = 
+                            let p1 = p.[0] :?> FpHashObject
+                            (FpNumberObject(p1.Count())) :> IFpObject
+                }
+            ) :> IFpObject
+        )()
+
+    static member Keys = 
+        (fun () ->  
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = 
+                            let p1 = p.[0] :?> FpHashObject
+                            let ret = FpArrayObject()
+                            ret.Init [for x in p1.Keys() do yield FpStringObject x]
+                            ret :> IFpObject
+                }
+            ) :> IFpObject
+        )()
+
+    static member Values = 
+        (fun () ->  
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = 
+                            let p1 = p.[0] :?> FpHashObject
+                            let ret = FpArrayObject()
+                            ret.Init (p1.Values())
+                            ret :> IFpObject
+                }
+            ) :> IFpObject
+        )()
 type TupleObject () =
     inherit FpHashObject();
     do
