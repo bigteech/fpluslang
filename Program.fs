@@ -268,9 +268,15 @@ type FpFunctionObject(argsNames: string list) =
                         |>  stack.Push
                         1
                     | Eq ->
-                        let l2 = stack.Pop() :?> FpNumberObject
-                        let l1 = stack.Pop() :?> FpNumberObject
-                        FpBooleanObject(l1.Value = l2.Value)
+                        let l1 = stack.Pop() :?> IFpObject
+                        let l2 = stack.Pop() :?> IFpObject
+                        match l1.Type with
+                            | ObjectCategory.FpStringObject ->
+                                FpBooleanObject((l1 :?> FpStringObject).Value = (l2 :?> FpStringObject).Value)
+                            | ObjectCategory.FpNumberObject ->
+                                FpBooleanObject((l1 :?> FpNumberObject).Value = (l2 :?> FpNumberObject).Value)
+                            | _ ->
+                                FpBooleanObject((l1 = l2))
                         |>  stack.Push
                         1
                     | Lte ->
@@ -422,121 +428,184 @@ type FpArrayObject()=
             base.Set(i.ToString(), p.[i])
         ()
 
-type ArrayCreateFunction () =
-    interface IFpCallable with 
-        member this.Call(args: IFpObject list): IFpObject =
-            let ret = FpArrayObject()
-            ret.Init (args) |> ignore
-            upcast ret 
-
-    interface IFpObject with 
-        member this.Type = ObjectCategory.FpFunctionObject
-        member this.IsTrue with get() = true
+let ArrayCreateFunction  =
+    {
+        new IFpCallable with 
+            member this.Call(args: IFpObject list): IFpObject =
+                let ret = FpArrayObject()
+                ret.Init (args) |> ignore
+                upcast ret 
+            member this.Type = ObjectCategory.FpFunctionObject
+            member this.IsTrue with get() = true
+    }
+    
 
 
 type ArrayObject () =
     inherit FpHashObject();
     do
-        base.Set("create", upcast ArrayCreateFunction())
-        base.Set("map", ArrayObject.Map())
-        base.Set("each", ArrayObject.Each())
-        base.Set("length", ArrayObject.Length())
+        base.Set("create", upcast ArrayCreateFunction)
+        base.Set("map", ArrayObject.Map)
+        base.Set("each", ArrayObject.Each)
+        base.Set("length", ArrayObject.Length)
+        base.Set("find", ArrayObject.Find)
+        base.Set("findIndex", ArrayObject.FindIndex)
 
-    static member Length () =
-        { 
-            new IFpCallable with
-                member this.Type = ObjectCategory.FpFunctionObject
-                member this.IsTrue with get() = true
-                member this.Call (p: IFpObject list) =
-                    FpNumberObject(p.Length) :> IFpObject
-        } :> IFpObject
-        
-
-    static member Each () = 
-        let fn (f : IFpObject list) = 
-            let f1 = f.[0] :?> IFpCallable
+    static member FindIndex = 
+        (fun () ->
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> IFpCallable
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ret = FpArrayObject()
+                            let ls = p.[0] :?> FpArrayObject
+                            try
+                                (FpNumberObject (ls.Values() |> List.findIndex (fun x -> 
+                                    (f1.Call [x]).IsTrue
+                                ))) :> IFpObject
+                            with 
+                                | _ ->
+                                    FpNullObject() :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+    static member Find  = 
+        (fun () ->
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> IFpCallable
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ret = FpArrayObject()
+                            let ls = p.[0] :?> FpArrayObject
+                            try
+                                ls.Values() |> List.find (fun x -> 
+                                    (f1.Call [x]).IsTrue
+                                )
+                            with 
+                                | _ ->
+                                    FpNullObject() :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+    static member Length =
+        (fun () ->
             { 
                 new IFpCallable with
                     member this.Type = ObjectCategory.FpFunctionObject
                     member this.IsTrue with get() = true
                     member this.Call (p: IFpObject list) =
-                        let ls = p.[0] :?> FpArrayObject
-                        for x in ls.Values() do
-                            f1.Call [x] |> ignore 
-                        FpNullObject() :> IFpObject
+                        FpNumberObject(p.Length) :> IFpObject
             } :> IFpObject
-        (
-            {
-                new IFpCallable with 
-                    member this.Type = ObjectCategory.FpFunctionObject
-                    member this.IsTrue with get() = true
-                    member x.Call (p: IFpObject list) = fn p
-            }
-        ) :> IFpObject
+        )()
+    static member Each = 
+        (fun () -> 
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> IFpCallable
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ls = p.[0] :?> FpArrayObject
+                            for x in ls.Values() do
+                                f1.Call [x] |> ignore 
+                            FpNullObject() :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+    static member Map =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> IFpCallable
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let ret = FpArrayObject()
+                            let ls = p.[0] :?> FpArrayObject
+                            let ret2 = ls.Values() |> List.map (fun x -> 
+                                    f1.Call [x]
+                                ) 
+                            ret.Init ret2
+                            upcast ret
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
 
-    static member Map () = 
-        let fn (f : IFpObject list) = 
-            let f1 = f.[0] :?> IFpCallable
-            { 
-                new IFpCallable with
-                    member this.Type = ObjectCategory.FpFunctionObject
-                    member this.IsTrue with get() = true
-                    member this.Call (p: IFpObject list) =
-                        let ret = FpArrayObject()
-                        let ls = p.[0] :?> FpArrayObject
-                        let ret2 = ls.Values() |> List.map (fun x -> 
-                                f1.Call [x]
-                            ) 
-                        ret.Init ret2
-                        upcast ret
-            } :> IFpObject
-        (
-            {
-                new IFpCallable with 
-                    member this.Type = ObjectCategory.FpFunctionObject
-                    member this.IsTrue with get() = true
-                    member x.Call (p: IFpObject list) = fn p
-            }
-        ) :> IFpObject
+
+let HashObjectCreateFunction  =
+    {
+         new IFpCallable with 
+            member this.Call(args: IFpObject list): IFpObject =
+                let ret = FpHashObject()
+                
+                for i=0 to args.Length - 1 do
+                    let t = args.[i] :?> FpTupleObject
+                    let k = t.Values.[0] :?> FpStringObject
+                    let v = t.Values.[1]
+                    ret.Set(k.Value,v)
+                upcast ret 
+
+            member this.Type = ObjectCategory.FpFunctionObject
+            member this.IsTrue with get() = true
+    }
     
 
-
-type HashObjectCreateFunction () =
-    interface IFpCallable with 
-        member this.Call(args: IFpObject list): IFpObject =
-            let ret = FpHashObject()
-            
-            for i=0 to args.Length - 1 do
-                let t = args.[i] :?> FpTupleObject
-                let k = t.Values.[0] :?> FpStringObject
-                let v = t.Values.[1]
-                ret.Set(k.Value,v)
-            upcast ret 
-
-    interface IFpObject with 
-        member this.Type = ObjectCategory.FpFunctionObject
-        member this.IsTrue with get() = true
-
-type TupleObjectCreateFunction () =
-    interface IFpCallable with 
-        member this.Call(args: IFpObject list): IFpObject =
-            let ret = FpTupleObject()
-            ret.Init (args) |> ignore
-            ret.Freeze()
-            upcast ret 
-
-    interface IFpObject with 
-        member this.Type = ObjectCategory.FpTupleObject
-        member this.IsTrue with get() = true
+let TupleObjectCreateFunction  =
+    {
+        new IFpCallable with 
+            member this.Call(args: IFpObject list): IFpObject =
+                let ret = FpTupleObject()
+                ret.Init (args) |> ignore
+                ret.Freeze()
+                upcast ret 
+            member this.Type = ObjectCategory.FpTupleObject
+            member this.IsTrue with get() = true
+    }
 
 type HashObject () =
     inherit FpHashObject();
     do
-        base.Set("create", upcast HashObjectCreateFunction())
+        base.Set("create", upcast HashObjectCreateFunction)
 type TupleObject () =
     inherit FpHashObject();
     do
-        base.Set("create", upcast TupleObjectCreateFunction())
+        base.Set("create", upcast TupleObjectCreateFunction)
 
 
 globalScope.Add("print", PrintFunction())
