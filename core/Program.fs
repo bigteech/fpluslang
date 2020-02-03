@@ -43,6 +43,7 @@ type Token =
     | GteToken
     | LtToken
     | LteToken
+    | AssignToken
 
 let isBinaryOpToken token =
     match token with 
@@ -350,12 +351,26 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                         ret |>  stack.Push
                         1
                     | Get ->
-                        let l1 = stack.Pop() :?> IFpHashable
                         let l2 = stack.Pop()
+                        let l1 = stack.Pop() :?> IFpHashable
+                        
                         if l2.Type = ObjectCategory.FpStringObject then
                             stack.Push (l1.Get (l2 :?> FpStringObject).Value)
                         else
                             stack.Push (l1.Get ((l2 :?> FpNumberObject).Value.ToString()))
+                        1
+                    | Assign ->
+                        let l3 = stack.Pop()
+                        let l2 = stack.Pop()
+                        let l1 = stack.Pop() :?> IFpHashable
+
+                        
+                        if l2.Type = ObjectCategory.FpStringObject then
+                            l1.Set ((l2 :?> FpStringObject).Value, l3)
+                            stack.Push l3
+                        else
+                            l1.Set ((l2 :?> FpStringObject).Value.ToString(), l3)
+                            stack.Push l3
                         1
                     | LoadVar x ->
                         stack.Push (getVarByName x)
@@ -552,12 +567,16 @@ let HashObjectCreateFunction () =
          new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
                 let ret = FpHashObject()
-                
-                for i=0 to args.Length - 1 do
-                    let t = args.[i] :?> FpTupleObject
-                    let k = t.Values.[0] :?> FpStringObject
-                    let v = t.Values.[1]
+                if args.Length = 2 && args.[0].Type = ObjectCategory.FpStringObject then
+                    let k = args.[0] :?> FpStringObject
+                    let v = args.[1]
                     ret.Set(k.Value,v)
+                else
+                    for i=0 to args.Length - 1 do
+                        let t = args.[i] :?> FpTupleObject
+                        let k = t.Values.[0] :?> FpStringObject
+                        let v = t.Values.[1]
+                        ret.Set(k.Value,v)
                 upcast ret 
 
             member this.Type = ObjectCategory.FpFunctionObject
@@ -978,6 +997,8 @@ module Lexical =
                   | '<' ->
                       if text.[index+1] = '=' then
                         LteToken, (index+2)
+                      elif text.[index+1] = '-' then
+                        AssignToken, (index+2)
                       else
                         LtToken, (index+1)
                   | '.' ->
@@ -1255,17 +1276,7 @@ module rec Parser =
                 match parseState.nextToken with
                     | DotToken ->
                         parseState.moveNext() |> ignore
-                        let name = parseState.moveNext()
-                        match name with
-                            | IdenToken name -> 
-                                let ops = [LoadConst (FpStringObject name);LoadVar x;Get]
-                                [Op ops]
-                            | LeftSquareToken ->
-                                let opsValue = parseExpressionBinarySquare  parseState
-                                let ops = opsValue @ [LoadVar x] @ [Get]
-                                [Op ops]
-                            | _ ->
-                                raise (Exception "属性必须是字符串")
+                        parseExpressionGet parseState x
                     | _ ->
                         [Op [LoadVar x]]
 
@@ -1314,7 +1325,7 @@ module rec Parser =
                         ops
         let ops = parse ()
         
-        ops @ [Token VirtualPipeToken] @ [Op [LoadConst (FpStringObject "create"); LoadVar "tuple"; Get]]
+        ops @ [Token VirtualPipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
 
     let parseExpressionNewArray (parseState: ParseState) =
         let rec parse () =
@@ -1333,7 +1344,38 @@ module rec Parser =
                         raise (Exception "右方括号需要闭合")
         let ops = parse ()
         exceptWithComment parseState RightSquareToken "右方括号需要闭合"
-        (ops |> sortExpressionBinary) @ [LoadConst (FpStringObject "create"); LoadVar "list"; Get]  @ [Call]
+        (ops |> sortExpressionBinary) @ [LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
+
+    let parseExpressionGet (parseState: ParseState) (x: string)=
+        let rec parse () =
+            match parseState.moveNext() with
+                | IdenToken name -> 
+                    let ops = [LoadConst (FpStringObject name);Get]
+                    match parseState.nextToken with
+                        | AssignToken ->
+                            parseState.moveNext() |> ignore
+                            [LoadConst (FpStringObject name)] @ (parseExpression parseState) @ [Assign]
+                        | DotToken ->
+                            parseState.moveNext() |> ignore
+                            ops @  parse ()
+                        | _ ->
+                            ops
+                | LeftSquareToken ->
+                    let opsValue = parseExpressionBinarySquare  parseState
+                    let ops = opsValue @ [Get]
+                    match parseState.nextToken with
+                        | AssignToken ->
+                            parseState.moveNext() |> ignore
+                            opsValue @ (parseExpression parseState) @ [Assign]
+                        | DotToken ->
+                            parseState.moveNext() |> ignore
+                            ops @  parse ()
+                        | _ ->
+                            ops
+                | _ ->
+                    raise (Exception "属性必须是字符串") 
+        
+        [Op (([LoadVar x]) @ (parse ()))]
 
     let parseKv (parseState: ParseState) index =
         let ops = parseExpression parseState
@@ -1356,8 +1398,11 @@ module rec Parser =
         except parseState RightBraceToken
         (if index > 1 then
             ops @ [for x in [1 .. index-1] do yield Zip] 
+         elif index = 1 then
+            ops
         else 
-            ops)  @ [LoadConst (FpStringObject "create"); LoadVar "dict"; Get]  @ [Call]
+            ops)  
+            @ [ LoadVar "dict"; LoadConst (FpStringObject "create"); Get]  @ [Call]
     let parseExpression  (parseState: ParseState): Op list =
         parseExpressionBinary parseState |> sortExpressionBinary
 
