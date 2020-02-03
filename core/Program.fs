@@ -956,7 +956,7 @@ module Lexical =
 
     let rec nextToken (parseState) index : Token*int=
         let text = parseState.text
-        if index = text.Length then
+        if index >= text.Length then
             Eof, 0
         else
             match text.[index] with
@@ -1033,7 +1033,7 @@ module Lexical =
                       else
                         OrToken, (index+1)
                   | _ ->
-                      Eof, 0
+                      raise (Exception "没定义的Token")
 
     let initToken parseState =
         let rec temp index =
