@@ -997,8 +997,8 @@ module Lexical =
                   | '<' ->
                       if text.[index+1] = '=' then
                         LteToken, (index+2)
-                      elif text.[index+1] = '-' then
-                        AssignToken, (index+2)
+                    //   elif text.[index+1] = '-' then
+                    //     AssignToken, (index+2)
                       else
                         LtToken, (index+1)
                   | '.' ->
