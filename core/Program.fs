@@ -1187,8 +1187,9 @@ module rec Parser =
         exceptWithComment parseState LeftBraceToken "if需要代码块"
         let opsBlock = parseStatement parseState
         exceptWithComment parseState RightBraceToken "if代码块需要闭合"
-        match parseState.moveNext() with
+        match parseState.nextToken with
                 | ElseToken ->
+                    parseState.moveNext() |> ignore
                     exceptWithComment parseState LeftBraceToken "else需要代码块"
                     let opsElseBlock = parseStatement parseState
                     exceptWithComment parseState RightBraceToken "if代码块需要闭合"

@@ -7,55 +7,72 @@ open Fp
 open Fable.Core.Util
 open Fable.Core
 
-
-let AlertFunction ()=
-    {
-        new IFpCallable with 
-            member this.Call(args: IFpObject list): IFpObject =
-                let message = (args.[0] :?> FpStringObject).Value
-                Browser.Dom.window.alert message
-                FpNullObject() :> IFpObject
-
-            member this.Type = ObjectCategory.FpFunctionObject
-            member this.IsTrue with get() = true
-    }
-
-addGlobalObject "alert" (AlertFunction())
-
 [<Emit("$0[$1]")>]
-let getAttr (x: Object) (y: string): string = jsNative
-
-[<Emit("typeof x")>]
+let getAttr (x: Object) (y: string) = jsNative
+[<Emit("$0.apply(window, $1)")>]
+let jsCall (x: Object) (y: Object list): Object = jsNative
+[<Emit("typeof $0")>]
 let getType (x: Object): string = jsNative
+[<Emit("$0")>]
+let toAny (x: Object) = jsNative
 
-let rec jsObject2FpObject (x: Object) =
-    {
-        new IFpHashable with
+module rec Main =
+    let rec ConvertFpObject2JsObject (p: IFpObject) =
+        match p.Type with 
+            | ObjectCategory.FpFunctionObject -> 
+                toAny (fun x -> 
+                    (p :?> IFpCallable).Call [JSObject x]
+                )
+            | ObjectCategory.FpHashObject ->
+                let m = (p :?> FpHashObject)
+                let kvs = new Collections.Generic.Dictionary<string, IFpObject>();
+                for x in m.Keys() do
+                    kvs.Add(x, ConvertFpObject2JsObject((m.Get x)))
+                toAny (kvs)
+            | ObjectCategory.FpStringObject ->
+                toAny ((p :?> FpStringObject).Value)
+            | ObjectCategory.FpNullObject ->
+                toAny (null)
+            | ObjectCategory.FpNumberObject ->
+                toAny ((p :?> FpNumberObject).Value)
+            | ObjectCategory.FpBooleanObject ->
+                toAny (p.IsTrue)
+            | ObjectCategory.FpTupleObject ->
+                let m = (p :?> FpTupleObject)
+                toAny ([for x in m.Keys() do yield ConvertFpObject2JsObject((m.Get x))])
+            | _ ->
+                raise (Exception "无法转换的类型")
+    type JSObject (obj: Object) = 
+        member this.GetRawObj () = obj
+
+        interface IFpHashable with
             member this.Get(p: string): IFpObject = 
-                let v = getAttr x p
+                let v = getAttr obj p
                 let tp = getType v
                 match tp with
                     | "string" -> 
                         (FpStringObject v) :> IFpObject
+                    | "number" -> 
+                        (FpNumberObject (int32 (v))) :> IFpObject
                     | "object" -> 
-                        (jsObject2FpObject v) :> IFpObject
+                        (JSObject v) :> IFpObject
+                    | "function" -> 
+                        {
+                            new IFpCallable with 
+                                member this.Call(args: IFpObject list): IFpObject =
+                                    let pa = ([for x in args do yield ConvertFpObject2JsObject(x)])?toJSON()
+                                    JSObject(jsCall v ([for x in args do yield ConvertFpObject2JsObject(x)]?toJSON())) :> IFpObject
+                                member this.Type = ObjectCategory.FpFunctionObject
+                                member this.IsTrue with get() = true
+                        } :> IFpObject
+                        
                     | _ -> 
                         FpNullObject() :> IFpObject
             member this.Set m =
                 raise (Exception "不能改变内置对象")
-
         interface IFpObject with 
             member this.Type = ObjectCategory.FpHashObject
             member this.IsTrue with get() = true
-    }
-
-type El (value: Browser.Types.Element) =
-
-    member this.GetValue () = value
-
-    interface IFpObject with 
-        member this.Type = ObjectCategory.FpHashObject
-        member this.IsTrue with get() = true
 
 type DocumentObject () =
     inherit FpHashObject();
@@ -76,8 +93,8 @@ type DocumentObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (element: IFpObject list) =
-                            let el = element.[0] :?> El
-                            let p = el.GetValue()
+                            let el = element.[0] :?> Main.JSObject
+                            let p = el.GetRawObj()
                             let key = (key.[0] :?> FpStringObject).Value
                             (FpStringObject (getAttr p key)) :> IFpObject
                 } :> IFpObject
@@ -98,8 +115,8 @@ type DocumentObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (element: IFpObject list) =
-                            let el = element.[0] :?> El
-                            let p = el.GetValue()
+                            let el = element.[0] :?> Main.JSObject
+                            let p = el.GetRawObj() :?> Browser.Types.Element
                             let key = (key.[0] :?> FpStringObject).Value
                             (FpStringObject (p.getAttribute key)) :> IFpObject
                 } :> IFpObject
@@ -124,7 +141,7 @@ type DocumentObject () =
                             let nodes = Browser.Dom.document.getElementsByTagName(name.Value)
                             let mutable ret2 = []
                             for x = 0 to nodes.length - 1 do
-                                ret2 <- (El(nodes.Item(x)) :> IFpObject) :: ret2
+                                ret2 <- (Main.JSObject(nodes.Item(x)) :> IFpObject) :: ret2
                             let ret = FpArrayObject() 
                             ret.Init ret2
                             ret :> IFpObject
@@ -143,7 +160,7 @@ type DocumentObject () =
                             let nodes = Browser.Dom.document.getElementsByClassName(name.Value)
                             let mutable ret2 = []
                             for x = 0 to nodes.length - 1 do
-                                ret2 <- (El(nodes.Item(x)) :> IFpObject) :: ret2
+                                ret2 <- (Main.JSObject(nodes.Item(x)) :> IFpObject) :: ret2
                             let ret = FpArrayObject() 
                             ret.Init ret2
                             ret :> IFpObject
@@ -159,11 +176,11 @@ type DocumentObject () =
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = 
                             let name = p.[0] :?> FpStringObject
-                            El (Browser.Dom.document.getElementById(name.Value)) :> IFpObject
+                            Main.JSObject (Browser.Dom.document.getElementById(name.Value)) :> IFpObject
                 }
             ) :> IFpObject
         )()
-    static member Body  with get() = (El Browser.Dom.document.body) :> IFpObject
+    static member Body  with get() = (Main.JSObject Browser.Dom.document.body) :> IFpObject
         
     static member Append = 
         (fun () ->
@@ -173,9 +190,9 @@ type DocumentObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (child: IFpObject list) =
-                            let f1 = parent.[0] :?> El
-                            let p = f1.GetValue()
-                            let chil = ((child.[0] :?> El).GetValue())
+                            let f1 = parent.[0] :?> Main.JSObject
+                            let p = f1.GetRawObj() :?> Browser.Types.Element
+                            let chil = ((child.[0] :?> Main.JSObject).GetRawObj()):?> Browser.Types.Element
                             p.appendChild chil |> ignore
                             FpNullObject() :> IFpObject
                 } :> IFpObject
@@ -210,7 +227,7 @@ type DocumentObject () =
                                         | "onclick" -> 
                                             el.addEventListener("click", (fun y -> 
                                                 let onclick = f2.Get(x) :?> IFpCallable
-                                                onclick.Call ([jsObject2FpObject(y)]) |> ignore
+                                                onclick.Call ([Main.JSObject(y)]) |> ignore
                                             ))
                                         | _ -> ()
                                     ()
@@ -218,8 +235,8 @@ type DocumentObject () =
                                 if x.Type = ObjectCategory.FpStringObject then
                                     el.textContent <- x.ToString()
                                 else
-                                    el.appendChild ((x :?> El).GetValue()) |> ignore
-                            El(el) :> IFpObject
+                                    el.appendChild ((x :?> Main.JSObject).GetRawObj() :?> Browser.Types.Node) |> ignore
+                            Main.JSObject(el) :> IFpObject
                 } :> IFpObject
             let fn1 (f : IFpObject list) = 
                 {
@@ -254,10 +271,10 @@ type WindowObject () =
                         FpNullObject() :> IFpObject
             }
         ) :> IFpObject
-
-addGlobalObject "document" (DocumentObject())
-addGlobalObject "window" (WindowObject())
-
+addGlobalObject "document" (Main.JSObject(Browser.Dom.document))
+addGlobalObject "window" (Main.JSObject(Browser.Dom.window))
+addGlobalObject "windowHelper" (WindowObject())
+addGlobalObject "documentHelper" (DocumentObject())
 
 fetch "./main.fp" [] // use the fetch api to load our resource
     |> Promise.bind (fun res -> res.text()) // get the resul
