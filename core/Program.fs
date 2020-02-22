@@ -31,6 +31,7 @@ type Token =
     | CommaToken
     | PipeToken
     | VirtualPipeToken
+    | VirtualCommaToken
     | OrToken
     | BindToken
     | LeftParenthesesToken
@@ -882,6 +883,7 @@ let addGlobalObject x y =
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 
+        | VirtualCommaToken -> 6
         | PipeToken -> 5
         | GtToken | LtToken | GteToken | LteToken | BindToken -> 4
         | AddToken -> 3
@@ -1077,10 +1079,10 @@ let getObjectByToken token: Op list =
 
 let getOpByToken token = 
     match token with
-        |  PipeToken | VirtualPipeToken-> Call
-        |  CommaToken -> Zip
-        |  MulToken  -> Mul
-        |  AddToken -> Add
+        | PipeToken | VirtualPipeToken-> Call
+        | CommaToken | VirtualCommaToken -> Zip
+        | MulToken  -> Mul
+        | AddToken -> Add
         | SubToken -> Sub
         | DiviToken -> Divi
         | GtToken -> Gt
@@ -1349,7 +1351,7 @@ module rec Parser =
                     | SemiToken ->
                         parseState.moveNext() |> ignore
                         let m = parse ()
-                        ops @ [Token CommaToken] @ m
+                        ops @ [Token VirtualCommaToken] @ m
                     | RightSquareToken ->
                         ops
                     | _ ->
