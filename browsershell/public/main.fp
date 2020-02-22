@@ -18,4 +18,3 @@ let parent =
     ];
 
 document.append document.body parent;
-();
