@@ -77,24 +77,35 @@ print 1,2,(1,2),1;
 ```
 ## 浏览器上运行
 ```f#
+
 let onclick x = {
     "searchInput"
-        |> document.getElementById
-        |> document.getProp "value"
+        |> documentHelper.getElementById
+        |> documentHelper.getProp "value"
         |> string.concat "https://www.baidu.com/s?wd="
-        |> window.goto;
+        |> windowHelper.goto;
 }
     
-let Div = document.createElement "div";
-let Span = document.createElement "span";
-let Input = document.createElement "input";
-let Button = document.createElement "button";
+let Div = documentHelper.createElement "div";
+let Span = documentHelper.createElement "span";
+let Input = documentHelper.createElement "input";
+let Button = documentHelper.createElement "button";
 let parent = 
     Div {"style","margin-top:10rem;display: flex;justify-content: center;align-items: center;"} [
         Input {"id","searchInput";"style","outline:none;font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid #c5c1c1;"} [];
         Button {"style","outline:none;height: 2rem;margin-left: 1rem;border-radius: 0.2rem;";"onclick",onclick} ["搜索"]
     ];
 
-document.append document.body parent;
+document.addEventListener "keyup",(fn x = {
+    if (x.code = "Enter") {
+        "searchInput"
+            |> documentHelper.getElementById
+            |> documentHelper.getProp "value"
+            |> string.concat "https://www.baidu.com/s?wd="
+            |> windowHelper.goto;
+    };
+    ();
+});
+documentHelper.append documentHelper.body parent;
 ```
 <img src="./browser.png">
