@@ -208,11 +208,10 @@ type DocumentObject () =
                                 else
                                     match x with
                                         | "onclick" -> 
-                                            el.onclick <- (fun y -> 
+                                            el.addEventListener("click", (fun y -> 
                                                 let onclick = f2.Get(x) :?> IFpCallable
                                                 onclick.Call ([jsObject2FpObject(y)]) |> ignore
-                                            )
-                                            ()
+                                            ))
                                         | _ -> ()
                                     ()
                             for x in children.Values() do
