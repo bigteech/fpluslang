@@ -17,8 +17,8 @@ let parent =
     justify-content: center;
     align-items: center;
 "} [
-        Input {"id","searchInput";"style","font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid gray;"} [];
-        Button {"style","height: 2rem;margin-left: 1rem;border-radius: 0.2rem;";"onclick",onclick} ["搜索"]
+        Input {"id","searchInput";"style","outline:none;font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid gray;"} [];
+        Button {"style","outline:none;height: 2rem;margin-left: 1rem;border-radius: 0.2rem;";"onclick",onclick} ["搜索"]
     ];
 
 document.append document.body parent;
