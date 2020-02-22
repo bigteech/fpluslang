@@ -8,5 +8,14 @@ let showMessage2 x = {
 }
 
 let p = "F+!" |> showMessage2;
-"hello " |> p;
+
+let onclick x = {
+    "hello " |> p;
+}
+    
+let Div = document.createElement "div";
+let child = Div {"onclick",onclick;"class","hhhh";"style","height:11rem;width:12rem;background-color: blue"} ["fwsfds"];
+let parent = Div {"class","hhhh";"style","height:12rem;width:13rem;background-color: red"} [child];
+
+document.append document.body parent;
 ();

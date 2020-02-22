@@ -336,6 +336,15 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                     | Zip ->
                         let l2 = stack.Pop()
                         let l1 = stack.Pop()
+                        let v2 = (match l2.Type with
+                            | ObjectCategory.FpTupleObject ->
+                                let obj = (l2 :?> FpTupleObject)
+                                if obj.IsFreeze() then
+                                    [l2]
+                                else
+                                    obj.Values
+                            | _ ->
+                                [l2])
                         let v1 = (match l1.Type with
                             | ObjectCategory.FpTupleObject ->
                                 let obj = (l1 :?> FpTupleObject)
@@ -347,7 +356,7 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                                 [l1])
                         
                         let ret = FpTupleObject()
-                        ret.Init (v1 @ [l2]) |> ignore
+                        ret.Init (v1 @ v2) |> ignore
                         ret |>  stack.Push
                         1
                     | Get ->
@@ -420,8 +429,11 @@ type FpArrayObject()=
     inherit FpHashObject();
     
     member this.Init(p: IFpObject list) = 
-        for i=0 to (p.Length-1) do 
-            base.Set(i.ToString(), p.[i])
+        if p.Length = 0 then
+            ()
+        else
+            for i=0 to (p.Length-1) do 
+                base.Set(i.ToString(), p.[i])
         ()
 
 let ArrayCreateFunction  () =

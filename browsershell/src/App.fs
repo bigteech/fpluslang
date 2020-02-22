@@ -4,6 +4,8 @@ open Fable.Core.JsInterop
 open Fetch
 open Fable.Import
 open Fp
+open Fable.Core.Util
+open Fable.Core
 
 
 let AlertFunction ()=
@@ -19,6 +21,125 @@ let AlertFunction ()=
     }
 
 addGlobalObject "alert" (AlertFunction())
+
+[<Emit("$0.$1")>]
+let getAttr (x: Object) (y: string): string = jsNative
+[<Emit("typeof x")>]
+let getType (x: Object): string = jsNative
+
+let rec jsObject2FpObject (x: Object) =
+    {
+        new IFpHashable with
+            member this.Get(p: string): IFpObject = 
+                let v = getAttr x p
+                let tp = getType v
+                match tp with
+                    | "string" -> 
+                        (FpStringObject v) :> IFpObject
+                    | "object" -> 
+                        (jsObject2FpObject v) :> IFpObject
+                    | _ -> 
+                        FpNullObject() :> IFpObject
+            member this.Set m =
+                raise (Exception "不能改变内置对象")
+
+        interface IFpObject with 
+            member this.Type = ObjectCategory.FpHashObject
+            member this.IsTrue with get() = true
+    }
+
+type El (value: Browser.Types.HTMLElement) =
+
+    member this.GetValue () = value
+
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpHashObject
+        member this.IsTrue with get() = true
+
+type DocumentObject () =
+    inherit FpHashObject();
+    do
+        base.Set("createElement", DocumentObject.CreateElement)
+        base.Set("append", DocumentObject.Append)
+        base.Set("body", DocumentObject.Body)
+        
+    static member Body  with get() = (El Browser.Dom.document.body) :> IFpObject
+        
+    static member Append = 
+        (fun () ->
+            let fn (parent : IFpObject list) = 
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (child: IFpObject list) =
+                            let f1 = parent.[0] :?> El
+                            let p = f1.GetValue()
+                            let chil = ((child.[0] :?> El).GetValue())
+                            p.appendChild chil |> ignore
+                            FpNullObject() :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+    static member CreateElement = 
+        (fun () ->
+            let fn (tag : IFpObject list) (attr : IFpObject list)= 
+                let f1 = tag.[0] :?> FpStringObject
+                let f2 = attr.[0] :?> FpHashObject 
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let children = p.[0] :?> FpArrayObject
+                            let el = Browser.Dom.document.createElement (f1.Value) 
+                            for x in f2.Keys() do
+                                let v = f2.Get(x)
+                                if v.Type = ObjectCategory.FpStringObject then
+                                    el.setAttribute (x, f2.Get(x).ToString())
+                                    ()
+                                else
+                                    match x with
+                                        | "onclick" -> 
+                                            el.onclick <- (fun y -> 
+                                                let onclick = f2.Get(x) :?> IFpCallable
+                                                onclick.Call ([jsObject2FpObject(y)]) |> ignore
+                                            )
+                                            ()
+                                        | _ -> ()
+                                    ()
+                            for x in children.Values() do
+                                if x.Type = ObjectCategory.FpStringObject then
+                                    el.textContent <- x.ToString()
+                                else
+                                    el.appendChild ((x :?> El).GetValue()) |> ignore
+                            El(el) :> IFpObject
+                } :> IFpObject
+            let fn1 (f : IFpObject list) = 
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn f p
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn1 p
+                }
+            ) :> IFpObject
+        )()
+
+addGlobalObject "document" (DocumentObject())
 
 
 fetch "./main.fp" [] // use the fetch api to load our resource
