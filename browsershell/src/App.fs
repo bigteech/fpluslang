@@ -22,7 +22,7 @@ let AlertFunction ()=
 
 addGlobalObject "alert" (AlertFunction())
 
-[<Emit("$0.[$1]")>]
+[<Emit("$0[$1]")>]
 let getAttr (x: Object) (y: string): string = jsNative
 
 [<Emit("typeof x")>]
