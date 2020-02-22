@@ -7,6 +7,6 @@ let showMessage2 x = {
     };
 }
 
-let p = "hello  F+!" |> showMessage2;
-"++++++++++++" |> p;
+let p = "F+!" |> showMessage2;
+"hello " |> p;
 ();
