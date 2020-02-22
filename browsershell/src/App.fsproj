@@ -3,8 +3,8 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../core/fc.fsproj">
-      <Name>fc.fsproj</Name>
+    <ProjectReference Include="../../core/fp.fsproj">
+      <Name>fp.fsproj</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
