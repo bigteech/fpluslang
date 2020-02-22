@@ -696,6 +696,7 @@ type StringObject () =
     inherit FpHashObject();
     do
         base.Set("split", StringObject.Split)
+        base.Set("concat", StringObject.Concat)
         base.Set("join", StringObject.Join )
         base.Set("replace", StringObject.Replace )
         base.Set("charAt", StringObject.charAt )
@@ -703,6 +704,28 @@ type StringObject () =
         base.Set("endsWith", StringObject.EndsWith )
         base.Set("trimStart", StringObject.TrimStart )
         base.Set("trimEnd", StringObject.TrimEnd )
+    static member Concat =
+        (fun () ->  
+            let fn (f : IFpObject list) = 
+                let f1 = f.[0] :?> FpStringObject
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (p: IFpObject list) =
+                            let f2 = p.[0] :?> FpStringObject
+                            FpStringObject(f1.Value + f2.Value) :> IFpObject
+
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
 
     static member TrimEnd =
         (fun () ->  

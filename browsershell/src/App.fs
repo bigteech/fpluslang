@@ -238,8 +238,26 @@ type DocumentObject () =
                 }
             ) :> IFpObject
         )()
+type WindowObject () =
+    inherit FpHashObject();
+    do
+        base.Set("goto", WindowObject.Goto)
+
+    static member Goto = 
+        (
+            {
+                new IFpCallable with 
+                    member this.Type = ObjectCategory.FpFunctionObject
+                    member this.IsTrue with get() = true
+                    member x.Call (p: IFpObject list) = 
+                        let url = (p.[0] :?> FpStringObject).Value
+                        Browser.Dom.window.``open`` url |> ignore
+                        FpNullObject() :> IFpObject
+            }
+        ) :> IFpObject
 
 addGlobalObject "document" (DocumentObject())
+addGlobalObject "window" (WindowObject())
 
 
 fetch "./main.fp" [] // use the fetch api to load our resource

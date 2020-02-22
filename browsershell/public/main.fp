@@ -3,7 +3,8 @@ let onclick x = {
     "searchInput"
         |> document.getElementById
         |> document.getProp "value"
-        |> alert;
+        |> string.concat "https://www.baidu.com/s?wd="
+        |> window.goto;
 }
     
 let Div = document.createElement "div";
