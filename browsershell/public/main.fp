@@ -1,25 +1,24 @@
 
 let onclick x = {
-    let p = "hello world";
-    fn m = {
-        alert (p + x);
-    };
+    "searchInput"
+        |> document.getElementById
+        |> document.getProp "value"
+        |> alert;
 }
     
 let Div = document.createElement "div";
 let Span = document.createElement "span";
+let Input = document.createElement "input";
+let Button = document.createElement "button";
 let parent = 
-    Div {"class","hhhh";"style","height:12rem;width:13rem;background-color: red"} [
-        Div {"onclick",(onclick "!");"class","hhhh";"style","height:11rem;width:12rem;background-color: blue"} [
-            Span {} [
-                "hello"
-            ];
-            Span {} [
-                "world"
-            ]
-        ]
+    Div {"style","
+    display: flex;
+    justify-content: center;
+    align-items: center;
+"} [
+        Input {"id","searchInput";"style","font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid gray;"} [];
+        Button {"style","height: 2rem;margin-left: 1rem;border-radius: 0.2rem;";"onclick",onclick} ["搜索"]
     ];
 
 document.append document.body parent;
-
 ();

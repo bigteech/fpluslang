@@ -22,8 +22,9 @@ let AlertFunction ()=
 
 addGlobalObject "alert" (AlertFunction())
 
-[<Emit("$0.$1")>]
+[<Emit("$0.[$1]")>]
 let getAttr (x: Object) (y: string): string = jsNative
+
 [<Emit("typeof x")>]
 let getType (x: Object): string = jsNative
 
@@ -48,7 +49,7 @@ let rec jsObject2FpObject (x: Object) =
             member this.IsTrue with get() = true
     }
 
-type El (value: Browser.Types.HTMLElement) =
+type El (value: Browser.Types.Element) =
 
     member this.GetValue () = value
 
@@ -60,9 +61,108 @@ type DocumentObject () =
     inherit FpHashObject();
     do
         base.Set("createElement", DocumentObject.CreateElement)
+        base.Set("getAttr", DocumentObject.GetAttr)
+        base.Set("getProp", DocumentObject.GetProp)
         base.Set("append", DocumentObject.Append)
+        base.Set("getElementById", DocumentObject.GetElementById)
+        base.Set("getElementsByClassName", DocumentObject.GetElementByClassName)
+        base.Set("getElementsByTagName", DocumentObject.GetElementByTagName)
         base.Set("body", DocumentObject.Body)
-        
+    static member GetProp = 
+        (fun () ->
+            let fn (key : IFpObject list) = 
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (element: IFpObject list) =
+                            let el = element.[0] :?> El
+                            let p = el.GetValue()
+                            let key = (key.[0] :?> FpStringObject).Value
+                            (FpStringObject (getAttr p key)) :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+    static member GetAttr = 
+        (fun () ->
+            let fn (key : IFpObject list) = 
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (element: IFpObject list) =
+                            let el = element.[0] :?> El
+                            let p = el.GetValue()
+                            let key = (key.[0] :?> FpStringObject).Value
+                            (FpStringObject (p.getAttribute key)) :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+    static member GetElementByTagName = 
+        (fun () ->
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = 
+                            let name = p.[0] :?> FpStringObject
+                            let nodes = Browser.Dom.document.getElementsByTagName(name.Value)
+                            let mutable ret2 = []
+                            for x = 0 to nodes.length - 1 do
+                                ret2 <- (El(nodes.Item(x)) :> IFpObject) :: ret2
+                            let ret = FpArrayObject() 
+                            ret.Init ret2
+                            ret :> IFpObject
+                }
+            ) :> IFpObject
+        )()
+    static member GetElementByClassName = 
+        (fun () ->
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = 
+                            let name = p.[0] :?> FpStringObject
+                            let nodes = Browser.Dom.document.getElementsByClassName(name.Value)
+                            let mutable ret2 = []
+                            for x = 0 to nodes.length - 1 do
+                                ret2 <- (El(nodes.Item(x)) :> IFpObject) :: ret2
+                            let ret = FpArrayObject() 
+                            ret.Init ret2
+                            ret :> IFpObject
+                }
+            ) :> IFpObject
+        )()
+    static member GetElementById = 
+        (fun () ->
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = 
+                            let name = p.[0] :?> FpStringObject
+                            El (Browser.Dom.document.getElementById(name.Value)) :> IFpObject
+                }
+            ) :> IFpObject
+        )()
     static member Body  with get() = (El Browser.Dom.document.body) :> IFpObject
         
     static member Append = 
