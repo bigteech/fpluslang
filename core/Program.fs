@@ -1359,9 +1359,9 @@ module rec Parser =
         let ops = parse ()
         exceptWithComment parseState RightSquareToken "右方括号需要闭合"
         if ops.Length = 0 then
-            let empthTuple = FpTupleObject()
-            empthTuple.Freeze()
-            [LoadConst empthTuple; LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
+            let emptyTuple = FpTupleObject()
+            emptyTuple.Freeze()
+            [LoadConst emptyTuple; LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
         else
             (ops |> sortExpressionBinary) @ [LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
 
@@ -1415,13 +1415,18 @@ module rec Parser =
     let parseExpressionNewHashObject (parseState: ParseState) =
         let ops, index = parseKv parseState 0
         except parseState RightBraceToken
-        (if index > 1 then
-            ops @ [for x in [1 .. index-1] do yield Zip] 
-         elif index = 1 then
-            ops
-        else 
-            ops)  
-            @ [ LoadVar "dict"; LoadConst (FpStringObject "create"); Get]  @ [Call]
+        let ops2 = (
+            if index > 1 then
+                ops @ [for x in [1 .. index-1] do yield Zip] 
+            else 
+                ops
+        )  
+        if ops.Length = 0 then
+            let emptyTuple = FpTupleObject()
+            emptyTuple.Freeze()
+            [LoadConst emptyTuple; LoadVar "dict"; LoadConst (FpStringObject "create"); Get]  @ [Call]
+        else
+            ops2 @ [ LoadVar "dict"; LoadConst (FpStringObject "create"); Get]  @ [Call]
     let parseExpression  (parseState: ParseState): Op list =
         parseExpressionBinary parseState |> sortExpressionBinary
 
