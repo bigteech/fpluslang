@@ -1356,7 +1356,12 @@ module rec Parser =
                         raise (Exception "右方括号需要闭合")
         let ops = parse ()
         exceptWithComment parseState RightSquareToken "右方括号需要闭合"
-        (ops |> sortExpressionBinary) @ [LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
+        if ops.Length = 0 then
+            let empthTuple = FpTupleObject()
+            empthTuple.Freeze()
+            [LoadConst empthTuple; LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
+        else
+            (ops |> sortExpressionBinary) @ [LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
 
     let parseExpressionGet (parseState: ParseState) (x: string)=
         let rec parse () =
