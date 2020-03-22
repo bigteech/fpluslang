@@ -142,7 +142,7 @@ type DocumentObject () =
                             let mutable ret2 = []
                             for x = 0 to nodes.length - 1 do
                                 ret2 <- (Main.JSObject(nodes.Item(x)) :> IFpObject) :: ret2
-                            let ret = FpArrayObject() 
+                            let ret = FpListObject() 
                             ret.Init ret2
                             ret :> IFpObject
                 }
@@ -161,7 +161,7 @@ type DocumentObject () =
                             let mutable ret2 = []
                             for x = 0 to nodes.length - 1 do
                                 ret2 <- (Main.JSObject(nodes.Item(x)) :> IFpObject) :: ret2
-                            let ret = FpArrayObject() 
+                            let ret = FpListObject() 
                             ret.Init ret2
                             ret :> IFpObject
                 }
@@ -215,7 +215,7 @@ type DocumentObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let children = p.[0] :?> FpArrayObject
+                            let children = p.[0] :?> FpListObject
                             let el = Browser.Dom.document.createElement (f1.Value) 
                             for x in f2.Keys() do
                                 let v = f2.Get(x)

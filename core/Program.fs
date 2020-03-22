@@ -72,6 +72,7 @@ type ObjectCategory =
     | FpFunctionObject = 4
     | FpNullObject = 5
     | FpTupleObject = 6
+    | FpListObject = 7
 
 type IFpObject =
     abstract member Type: ObjectCategory
@@ -162,6 +163,14 @@ type FpHashObject() =
             | _ ->
                 ()
 
+    static member Add (x: FpHashObject, y:FpHashObject) = 
+        let ret = FpHashObject()
+        for m in x.Keys() do
+            ret.Set (m, x.Get(m))
+        for m in y.Keys() do
+            ret.Set (m, y.Get(m))
+        ret
+
     member this.Count () = 
         kvs.Count
 
@@ -201,6 +210,25 @@ type FpBooleanObject(v: bool)=
         member this.IsTrue = v
 
 
+type FpListObject()=
+    inherit FpHashObject();
+    
+    member this.Init(p: IFpObject list) = 
+        if p.Length = 0 then
+            ()
+        else
+            for i=0 to (p.Length-1) do 
+                base.Set(i.ToString(), p.[i])
+        ()
+
+    static member Add (x: FpListObject, y:FpListObject) = 
+        let ret = FpListObject()
+        ret.Init (x.Values() @ y.Values())
+        ret
+
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpListObject
+  
 type FpTupleObject()=
     inherit FpHashObject();
     
@@ -269,6 +297,10 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                                 FpStringObject.Add(l2 :?> FpStringObject ,l1 :?> FpStringObject) :> IFpObject
                             | ObjectCategory.FpNumberObject ->
                                 FpNumberObject.Add(l2 :?> FpNumberObject, l1 :?> FpNumberObject) :> IFpObject
+                            | ObjectCategory.FpListObject ->
+                                FpListObject.Add(l2 :?> FpListObject, l1 :?> FpListObject) :> IFpObject
+                            | ObjectCategory.FpHashObject ->
+                                FpHashObject.Add(l2 :?> FpHashObject, l1 :?> FpHashObject) :> IFpObject
                         |>  stack.Push
                         1
                     | Sub ->
@@ -425,38 +457,27 @@ type PrintFunction () =
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
-
-type FpArrayObject()=
-    inherit FpHashObject();
-    
-    member this.Init(p: IFpObject list) = 
-        if p.Length = 0 then
-            ()
-        else
-            for i=0 to (p.Length-1) do 
-                base.Set(i.ToString(), p.[i])
-        ()
-
-let ArrayCreateFunction  () =
+  
+let ListCreateFunction  () =
     {
         new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
-                let ret = FpArrayObject()
+                let ret = FpListObject()
                 ret.Init (args) |> ignore
                 upcast ret 
             member this.Type = ObjectCategory.FpFunctionObject
             member this.IsTrue with get() = true
     } :> IFpObject
 
-type ArrayObject () =
+type ListObject () =
     inherit FpHashObject();
     do
-        base.Set("create", ArrayCreateFunction())
-        base.Set("map", ArrayObject.Map)
-        base.Set("each", ArrayObject.Each)
-        base.Set("length", ArrayObject.Length)
-        base.Set("find", ArrayObject.Find)
-        base.Set("findIndex", ArrayObject.FindIndex)
+        base.Set("create", ListCreateFunction())
+        base.Set("map", ListObject.Map)
+        base.Set("each", ListObject.Each)
+        base.Set("length", ListObject.Length)
+        base.Set("find", ListObject.Find)
+        base.Set("findIndex", ListObject.FindIndex)
 
     static member FindIndex = 
         (fun () ->
@@ -467,8 +488,8 @@ type ArrayObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let ret = FpArrayObject()
-                            let ls = p.[0] :?> FpArrayObject
+                            let ret = FpListObject()
+                            let ls = p.[0] :?> FpListObject
                             try
                                 (FpNumberObject (ls.Values() |> List.findIndex (fun x -> 
                                     (f1.Call [x]).IsTrue
@@ -495,8 +516,8 @@ type ArrayObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let ret = FpArrayObject()
-                            let ls = p.[0] :?> FpArrayObject
+                            let ret = FpListObject()
+                            let ls = p.[0] :?> FpListObject
                             try
                                 ls.Values() |> List.find (fun x -> 
                                     (f1.Call [x]).IsTrue
@@ -533,7 +554,7 @@ type ArrayObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let ls = p.[0] :?> FpArrayObject
+                            let ls = p.[0] :?> FpListObject
                             for x in ls.Values() do
                                 f1.Call [x] |> ignore 
                             FpNullObject() :> IFpObject
@@ -556,8 +577,8 @@ type ArrayObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let ret = FpArrayObject()
-                            let ls = p.[0] :?> FpArrayObject
+                            let ret = FpListObject()
+                            let ls = p.[0] :?> FpListObject
                             let ret2 = ls.Values() |> List.map (fun x -> 
                                     f1.Call [x]
                                 ) 
@@ -629,7 +650,7 @@ type HashObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let ls = p.[0] :?> FpArrayObject
+                            let ls = p.[0] :?> FpListObject
                             (FpBooleanObject(ls.ContainsKey f1.Value)) :> IFpObject
                 } :> IFpObject
             (
@@ -666,7 +687,7 @@ type HashObject () =
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = 
                             let p1 = p.[0] :?> FpHashObject
-                            let ret = FpArrayObject()
+                            let ret = FpListObject()
                             ret.Init [for x in p1.Keys() do yield FpStringObject x]
                             ret :> IFpObject
                 }
@@ -682,7 +703,7 @@ type HashObject () =
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = 
                             let p1 = p.[0] :?> FpHashObject
-                            let ret = FpArrayObject()
+                            let ret = FpListObject()
                             ret.Init (p1.Values())
                             ret :> IFpObject
                 }
@@ -858,7 +879,7 @@ type StringObject () =
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
                             let ls = p.[0] :?> FpStringObject
-                            let ret = FpArrayObject()
+                            let ret = FpListObject()
                             let ls2 = (ls.Value).Split (f1.Value)
                             ret.Init ([for x in ls2 do yield (FpStringObject x)])
                             ret :> IFpObject
@@ -883,7 +904,7 @@ type StringObject () =
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
-                            let ls = p.[0] :?> FpArrayObject
+                            let ls = p.[0] :?> FpListObject
                             FpStringObject (String.Join(f1.Value, ls)) :> IFpObject
                 } :> IFpObject
             (
@@ -1487,7 +1508,7 @@ module rec Parser =
 module Vm = 
     let init () =
         globalScope.Add("print", PrintFunction())
-        globalScope.Add("list", ArrayObject())
+        globalScope.Add("list", ListObject())
         globalScope.Add("dict", HashObject())
         globalScope.Add("tuple", TupleObject())
         globalScope.Add("string", StringObject())
