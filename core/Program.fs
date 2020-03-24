@@ -30,7 +30,6 @@ type Token =
     | SemiToken
     | CommaToken
     | PipeToken
-    | VirtualPipeToken
     | VirtualCommaToken
     | OrToken
     | BindToken
@@ -54,7 +53,7 @@ let isBinaryOpToken token =
         | DiviToken
         | PipeToken
         | GtToken
-        | VirtualPipeToken
+        | PipeToken
         | GteToken
         | LtToken
         | LteToken
@@ -928,13 +927,12 @@ let maxLevel = 10
 let getLevelByToken token =
     match token with 
         | VirtualCommaToken -> 6
-        | PipeToken -> 5
         | GtToken | LtToken | GteToken | LteToken | BindToken -> 4
         | AddToken -> 3
         | SubToken -> 3
         | MulToken -> 2
         | DiviToken -> 2
-        | VirtualPipeToken -> 1
+        | PipeToken -> 1
         | CommaToken -> 0
         | _ ->
             raise (Exception "异常的符号")
@@ -1123,7 +1121,7 @@ let getObjectByToken token: Op list =
 
 let getOpByToken token = 
     match token with
-        | PipeToken | VirtualPipeToken-> Call
+        | PipeToken | PipeToken-> Call
         | CommaToken | VirtualCommaToken -> Zip
         | MulToken  -> Mul
         | AddToken -> Add
@@ -1384,7 +1382,7 @@ module rec Parser =
                         ops
         let ops = parse ()
         
-        ops @ [Token VirtualPipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
+        ops @ [Token PipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
 
     let parseExpressionNewArray (parseState: ParseState) =
         let rec parse () =
