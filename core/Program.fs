@@ -1128,18 +1128,18 @@ let getOpByToken token =
         | SubToken -> Sub
         | DiviToken -> Divi
         | GtToken -> Gt
-        | LtToken -> Lt
+        | LtToken -> Lts
         | GteToken -> Gte
         | LteToken -> Lte
         | BindToken -> Eq
 
-let except (parseState: ParseState) token =
+let expect (parseState: ParseState) token =
     if parseState.moveNext() = token then
         ()
     else
         raise (Exception "")
 
-let exceptWithComment (parseState: ParseState) token comment =
+let expectWithComment (parseState: ParseState) token comment =
     if parseState.moveNext() = token then
         ()
     else
@@ -1152,7 +1152,7 @@ module rec Parser =
             match token with
                 | LeftParenthesesToken ->
                     parseState.moveNext() |> ignore
-                    exceptWithComment parseState RightParenthesesToken "无参数的函数需要空元组"
+                    expectWithComment parseState RightParenthesesToken "无参数的函数需要空元组"
                     []
                 | IdenToken x->
                     match parseState.nextToken with
@@ -1168,7 +1168,7 @@ module rec Parser =
         match parseState.nextToken with
             | LeftParenthesesToken ->
                 parseState.moveNext() |> ignore
-                exceptWithComment parseState RightParenthesesToken "无参数的函数需要空元组"
+                expectWithComment parseState RightParenthesesToken "无参数的函数需要空元组"
                 []
             | _ ->
                 parse()
@@ -1203,15 +1203,15 @@ module rec Parser =
                 raise (Exception("let需要名称"))
     let parseIfExpression (parseState: ParseState) =
         let ops = parseExpressionBinaryNode parseState true |> sortExpressionBinary
-        exceptWithComment parseState LeftBraceToken "if需要代码块"
+        expectWithComment parseState LeftBraceToken "if需要代码块"
         let opsBlock = parseStatement parseState
-        exceptWithComment parseState RightBraceToken "if代码块需要闭合"
+        expectWithComment parseState RightBraceToken "if代码块需要闭合"
         match parseState.nextToken with
                 | ElseToken ->
                     parseState.moveNext() |> ignore
-                    exceptWithComment parseState LeftBraceToken "else需要代码块"
+                    expectWithComment parseState LeftBraceToken "else需要代码块"
                     let opsElseBlock = parseStatement parseState
-                    exceptWithComment parseState RightBraceToken "if代码块需要闭合"
+                    expectWithComment parseState RightBraceToken "if代码块需要闭合"
                     ops 
                     @ [JumpIfFalse (opsBlock.Length + 2)] 
                     @ opsBlock 
@@ -1358,12 +1358,12 @@ module rec Parser =
 
     let parseExpressionBinaryChild (parseState: ParseState) =
         let ops = parseExpression parseState
-        except parseState RightParenthesesToken
+        expect parseState RightParenthesesToken
         ops
 
     let parseExpressionBinarySquare (parseState: ParseState) =
         let ops = parseExpression parseState
-        except parseState RightSquareToken
+        expect parseState RightSquareToken
         ops
 
     let parseExpressionTuple (parseState: ParseState) =
@@ -1400,7 +1400,7 @@ module rec Parser =
                     | _ ->
                         raise (Exception "右方括号需要闭合")
         let ops = parse ()
-        exceptWithComment parseState RightSquareToken "右方括号需要闭合"
+        expectWithComment parseState RightSquareToken "右方括号需要闭合"
         if ops.Length = 0 then
             let emptyTuple = FpTupleObject()
             emptyTuple.Freeze()
@@ -1457,7 +1457,7 @@ module rec Parser =
 
     let parseExpressionNewHashObject (parseState: ParseState) =
         let ops, index = parseKv parseState 0
-        except parseState RightBraceToken
+        expect parseState RightBraceToken
         let ops2 = (
             if index > 1 then
                 ops @ [for x in [1 .. index-1] do yield Zip] 
@@ -1475,7 +1475,7 @@ module rec Parser =
 
     let parseExpressionInStatement  parseState =
         let ops = parseExpression parseState
-        exceptWithComment parseState SemiToken "表达式需要;结尾"
+        expectWithComment parseState SemiToken "表达式需要;结尾"
         ops
 
     let parseStatement (parseState: ParseState): Op list = 
