@@ -1128,7 +1128,7 @@ let getOpByToken token =
         | SubToken -> Sub
         | DiviToken -> Divi
         | GtToken -> Gt
-        | LtToken -> Lts
+        | LtToken -> Lt
         | GteToken -> Gte
         | LteToken -> Lte
         | BindToken -> Eq
