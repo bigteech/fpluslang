@@ -51,7 +51,6 @@ let isBinaryOpToken token =
         | SubToken
         | MulToken
         | DiviToken
-        | PipeToken
         | GtToken
         | PipeToken
         | GteToken
@@ -1121,7 +1120,7 @@ let getObjectByToken token: Op list =
 
 let getOpByToken token = 
     match token with
-        | PipeToken | PipeToken-> Call
+        | PipeToken -> Call
         | CommaToken | VirtualCommaToken -> Zip
         | MulToken  -> Mul
         | AddToken -> Add
@@ -1286,7 +1285,7 @@ module rec Parser =
                         unstruct k
                 | _ ->
                     raise (Exception "")
-        let ret1 = sort (sort ls 0) 1
+        let ret1 = sort ls 0
         let sorted = (sortAll (joinCall(ret1)) 1)
         if sorted.Length = 0 then
             []
