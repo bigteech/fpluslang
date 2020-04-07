@@ -302,8 +302,8 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                         |>  stack.Push
                         1
                     | Sub ->
-                        let l1 = stack.Pop() :?> FpNumberObject
                         let l2 = stack.Pop() :?> FpNumberObject
+                        let l1 = stack.Pop() :?> FpNumberObject
                         FpNumberObject(l1.Value - l2.Value) |>  stack.Push
                         1
                     | Divi ->
