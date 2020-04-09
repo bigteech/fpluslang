@@ -455,7 +455,15 @@ type PrintFunction () =
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
-  
+type NotFunction () =
+    interface IFpCallable with 
+        member this.Call(args: IFpObject list): IFpObject =
+            FpBooleanObject (not args.[0].IsTrue) :> IFpObject
+
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpFunctionObject
+        member this.IsTrue with get() = true
+
 let ListCreateFunction  () =
     {
         new IFpCallable with 
@@ -1509,6 +1517,7 @@ module Vm =
         globalScope.Add("dict", HashObject())
         globalScope.Add("tuple", TupleObject())
         globalScope.Add("string", StringObject())
+        globalScope.Add("not", NotFunction())
 
     let eval (f:IFpCallable) =
         f.Call []
