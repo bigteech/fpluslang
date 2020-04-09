@@ -446,6 +446,11 @@ type PrintFunction () =
                         (p :?> FpStringObject).Value
                     | ObjectCategory.FpNumberObject->
                         (p :?> FpNumberObject).Value.ToString()
+                    | ObjectCategory.FpBooleanObject->
+                        if p.IsTrue then
+                            "true"
+                        else
+                            "false"
                     | _ ->
                         "<" + p.Type.ToString() + ">"
             String.Join("", args |> List.map temp) |> printf "%s"
@@ -1518,6 +1523,8 @@ module Vm =
         globalScope.Add("tuple", TupleObject())
         globalScope.Add("string", StringObject())
         globalScope.Add("not", NotFunction())
+        globalScope.Add("true", FpBooleanObject(true))
+        globalScope.Add("false", FpBooleanObject(false))
 
     let eval (f:IFpCallable) =
         f.Call []
