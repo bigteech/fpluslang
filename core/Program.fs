@@ -335,6 +335,8 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                                 FpBooleanObject((l1 :?> FpStringObject).Value = (l2 :?> FpStringObject).Value)
                             | ObjectCategory.FpNumberObject ->
                                 FpBooleanObject((l1 :?> FpNumberObject).Value = (l2 :?> FpNumberObject).Value)
+                            | ObjectCategory.FpBooleanObject ->
+                                FpBooleanObject(l1.IsTrue = l2.IsTrue)
                             | _ ->
                                 FpBooleanObject((l1 = l2))
                         |>  stack.Push
