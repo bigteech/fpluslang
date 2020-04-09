@@ -439,6 +439,34 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                 index <- index + (eval (oplst.[index]))
             downcast stack.Pop()
 
+type TypeOfFunction () =
+    interface IFpCallable with 
+        member this.Call(args: IFpObject list): IFpObject =
+            match args.[0].Type with 
+                | ObjectCategory.FpStringObject->
+                    "string"
+                | ObjectCategory.FpNumberObject->
+                    "number"
+                | ObjectCategory.FpBooleanObject->
+                    "bool"
+                | ObjectCategory.FpFunctionObject->
+                    "function"
+                | ObjectCategory.FpHashObject->
+                    "object"
+                | ObjectCategory.FpTupleObject->
+                    "tuple"
+                | ObjectCategory.FpListObject->
+                    "list"
+                | ObjectCategory.FpNullObject->
+                    "null"
+            |> (fun x -> 
+                FpStringObject x :> IFpObject
+            )
+
+    interface IFpObject with 
+        member this.Type = ObjectCategory.FpFunctionObject
+        member this.IsTrue with get() = true
+
 type PrintFunction () =
     interface IFpCallable with 
         member this.Call(args: IFpObject list): IFpObject =
@@ -1520,6 +1548,7 @@ module rec Parser =
 module Vm = 
     let init () =
         globalScope.Add("print", PrintFunction())
+        globalScope.Add("typeof", TypeOfFunction())
         globalScope.Add("list", ListObject())
         globalScope.Add("dict", HashObject())
         globalScope.Add("tuple", TupleObject())
