@@ -30,6 +30,7 @@ type Token =
     | SemiToken
     | CommaToken
     | PipeToken
+    | AndToken
     | VirtualCommaToken
     | OrToken
     | BindToken
@@ -52,6 +53,8 @@ let isBinaryOpToken token =
         | MulToken
         | DiviToken
         | GtToken
+        | AndToken
+        | OrToken
         | PipeToken
         | GteToken
         | LtToken
@@ -110,6 +113,8 @@ type Op =
     | Lte
     | Gt
     | Lt
+    | Or
+    | And
 
 
 
@@ -305,6 +310,16 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                         let l2 = stack.Pop() :?> FpNumberObject
                         let l1 = stack.Pop() :?> FpNumberObject
                         FpNumberObject(l1.Value - l2.Value) |>  stack.Push
+                        1
+                    | Or ->
+                        let l2 = stack.Pop() 
+                        let l1 = stack.Pop() 
+                        FpBooleanObject(l1.IsTrue || l2.IsTrue) |>  stack.Push
+                        1
+                    | And ->
+                        let l2 = stack.Pop() 
+                        let l1 = stack.Pop() 
+                        FpBooleanObject(l1.IsTrue && l2.IsTrue) |>  stack.Push
                         1
                     | Divi ->
                         let l2 = stack.Pop() :?> FpNumberObject
@@ -968,12 +983,13 @@ let addGlobalObject x y =
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 
-        | VirtualCommaToken -> 6
-        | GtToken | LtToken | GteToken | LteToken | BindToken -> 4
-        | AddToken -> 3
-        | SubToken -> 3
-        | MulToken -> 2
-        | DiviToken -> 2
+        | VirtualCommaToken -> 7
+        | GtToken | LtToken | GteToken | LteToken | BindToken -> 5
+        | AddToken -> 4
+        | SubToken -> 4
+        | MulToken -> 3
+        | DiviToken -> 3
+        | AndToken | OrToken -> 2
         | PipeToken -> 1
         | CommaToken -> 0
         | _ ->
@@ -1125,9 +1141,16 @@ module Lexical =
                       SemiToken, (index+1)
                   | ',' ->
                       CommaToken, (index+1)
+                  | '&' ->
+                      if text.[index+1] = '&' then
+                        AndToken, (index+2)
+                      else
+                        raise (Exception "unkonow token &")
                   | '|' ->
                       if text.[index+1] = '>' then
                         PipeToken, (index+2)
+                      elif text.[index+1] = '|' then
+                        OrToken, (index+2)
                       else
                         OrToken, (index+1)
                   | _ ->
@@ -1174,6 +1197,8 @@ let getOpByToken token =
         | GteToken -> Gte
         | LteToken -> Lte
         | BindToken -> Eq
+        | OrToken -> Or
+        | AndToken -> And
 
 let expect (parseState: ParseState) token =
     if parseState.moveNext() = token then
