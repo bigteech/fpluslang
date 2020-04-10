@@ -1,5 +1,5 @@
 
-let onclick x = {
+let onclick () = {
     "searchInput"
         |> documentHelper.getElementById
         |> documentHelper.getProp "value"
@@ -19,11 +19,7 @@ let parent =
 
 document.addEventListener "keyup",(fn x = {
     if (x.code = "Enter") {
-        "searchInput"
-            |> documentHelper.getElementById
-            |> documentHelper.getProp "value"
-            |> string.concat "https://www.baidu.com/s?wd="
-            |> windowHelper.goto;
+        onclick();
     };
     ();
 });
