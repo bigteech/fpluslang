@@ -59,6 +59,7 @@ let isBinaryOpToken token =
         | GteToken
         | LtToken
         | LteToken
+        | DotToken
         | BindToken ->
             true
         | _ ->
@@ -983,15 +984,16 @@ let addGlobalObject x y =
 let maxLevel = 10 
 let getLevelByToken token =
     match token with 
-        | VirtualCommaToken -> 7
-        | GtToken | LtToken | GteToken | LteToken | BindToken -> 5
-        | AddToken -> 4
-        | SubToken -> 4
-        | MulToken -> 3
-        | DiviToken -> 3
-        | AndToken | OrToken -> 2
-        | PipeToken -> 1
-        | CommaToken -> 0
+        | VirtualCommaToken -> 8
+        | GtToken | LtToken | GteToken | LteToken | BindToken -> 6
+        | AddToken -> 6
+        | SubToken -> 5
+        | MulToken -> 4
+        | DiviToken -> 4
+        | AndToken | OrToken -> 3
+        | PipeToken -> 2
+        | CommaToken -> 1
+        | DotToken -> 0
         | _ ->
             raise (Exception "异常的符号")
         
@@ -1196,6 +1198,7 @@ let getOpByToken token =
         | LtToken -> Lt
         | GteToken -> Gte
         | LteToken -> Lte
+        | DotToken -> Get
         | BindToken -> Eq
         | OrToken -> Or
         | AndToken -> And
@@ -1353,8 +1356,8 @@ module rec Parser =
                         unstruct k
                 | _ ->
                     raise (Exception "")
-        let ret1 = sort ls 0
-        let sorted = (sortAll (joinCall(ret1)) 1)
+        let ret2 = sort (sort ls 0) 1
+        let sorted = (sortAll (joinCall(ret2)) 2)
         if sorted.Length = 0 then
             []
         else
@@ -1398,9 +1401,6 @@ module rec Parser =
             | IdenToken x ->
                 parseState.moveNext() |> ignore
                 match parseState.nextToken with
-                    | DotToken ->
-                        parseState.moveNext() |> ignore
-                        parseExpressionGet parseState x
                     | _ ->
                         [Op [LoadVar x]]
 
@@ -1408,6 +1408,17 @@ module rec Parser =
                 parseState.moveNext() |> ignore
                 let ops = getObjectByToken token
                 [Op ops]
+            | DotToken _ ->
+                parseState.moveNext() |> ignore
+                match parseState.nextToken with
+                    | IdenToken x ->
+                        parseState.moveNext() |> ignore
+                        [Token DotToken; Op [LoadConst (FpStringObject x)]]
+                    | NumberToken x ->
+                        parseState.moveNext() |> ignore
+                        [Token DotToken; Op [LoadConst (FpStringObject (x.ToString()))]]
+                    | _ ->
+                        [Token DotToken]
             | a when (isBinaryOpToken a) && (not ignoreOp) ->
                 parseState.moveNext() |> ignore
                 [Token a]
@@ -1474,37 +1485,6 @@ module rec Parser =
             [LoadConst emptyTuple; LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
         else
             (ops |> sortExpressionBinary) @ [LoadVar "list"; LoadConst (FpStringObject "create"); Get]  @ [Call]
-
-    let parseExpressionGet (parseState: ParseState) (x: string)=
-        let rec parse () =
-            match parseState.moveNext() with
-                | IdenToken name -> 
-                    let ops = [LoadConst (FpStringObject name);Get]
-                    match parseState.nextToken with
-                        | AssignToken ->
-                            parseState.moveNext() |> ignore
-                            [LoadConst (FpStringObject name)] @ (parseExpression parseState) @ [Assign]
-                        | DotToken ->
-                            parseState.moveNext() |> ignore
-                            ops @  parse ()
-                        | _ ->
-                            ops
-                | LeftSquareToken ->
-                    let opsValue = parseExpressionBinarySquare  parseState
-                    let ops = opsValue @ [Get]
-                    match parseState.nextToken with
-                        | AssignToken ->
-                            parseState.moveNext() |> ignore
-                            opsValue @ (parseExpression parseState) @ [Assign]
-                        | DotToken ->
-                            parseState.moveNext() |> ignore
-                            ops @  parse ()
-                        | _ ->
-                            ops
-                | _ ->
-                    raise (Exception "属性必须是字符串") 
-        
-        [Op (([LoadVar x]) @ (parse ()))]
 
     let parseKv (parseState: ParseState) index =
         let ops = parseExpression parseState
