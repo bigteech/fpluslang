@@ -658,7 +658,14 @@ let HashObjectCreateFunction () =
          new IFpCallable with 
             member this.Call(args: IFpObject list): IFpObject =
                 let ret = FpHashObject()
-                if args.Length = 2 && args.[0].Type = ObjectCategory.FpStringObject then
+                if args.Length = 1 then
+                    let array = args.[0] :?> FpListObject
+                    for i in array.Values() do
+                        let t = i :?> FpTupleObject
+                        let k = t.Values.[0] :?> FpStringObject
+                        let v = t.Values.[1]
+                        ret.Set(k.Value,v)
+                elif args.Length = 2 && args.[0].Type = ObjectCategory.FpStringObject then
                     let k = args.[0] :?> FpStringObject
                     let v = args.[1]
                     ret.Set(k.Value,v)
