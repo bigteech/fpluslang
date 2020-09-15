@@ -46,10 +46,10 @@ let parent =
               } ["搜索"]
           ];
       div {"style","display:inline-block;width:50%"} [
-        iframe {"id","c1";"style","border:none;width:100%;height:1000px"} []
+        iframe {"id","c2";"style","border:none;width:100%;height:1000px"} []
       ];
       div {"style","display:inline-block;width:50%"} [
-        iframe {"id","c2";"style","border:none;width:100%;height:1000px"} []
+        iframe {"id","c1";"style","border:none;width:100%;height:1000px"} []
       ]
     ];
 
