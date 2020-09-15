@@ -1,27 +1,40 @@
-
-let onclick () = {
-    "searchInput"
-        |> documentHelper.getElementById
-        |> documentHelper.getProp "value"
-        |> string.concat "https://www.baidu.com/s?wd="
-        |> windowHelper.goto;
+let search x = {
+    let l2 = string.concat "https://www.google.com.hk/search?q=" x;
+    let l3 = string.concat "https://cn.bing.com/search?&q=" x;
+    windowHelper.goto l3;
+    windowHelper.goto l2;
+    ();
 }
 
-let log = window.console.log;   
-let alert = window.alert; 
-let Div = documentHelper.createElement "div";
-let Span = documentHelper.createElement "span";
-let Input = documentHelper.createElement "input";
-let Button = documentHelper.createElement "button";
-let parent = 
-    Div {
+if (window.location.search) {
+  let newQ = window.location.search  |> string.replace ("?q=", "");
+  search newQ;
+  ();
+};
+
+let onclick () = {
+    "searchinput"
+        |> documentHelper.getElementById
+        |> documentHelper.getProp "value"
+        |> search;
+}
+
+let log = window.console.log;
+let alert = window.alert;
+let div = documentHelper.createElement "div";
+let span = documentHelper.createElement "span";
+let input = documentHelper.createElement "input";
+let button = documentHelper.createElement "button";
+let parent =
+    div {
             "style","margin-top:10rem;display: flex;justify-content: center;align-items: center;"
         } [
-            Input {
-                "id","searchInput";
+            input {
+                "id","searchinput";
+                "value", newQ;
                 "style","padding-left:0.5rem;outline:none;font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid #c5c1c1;"
             } [];
-            Button {
+            button {
                 "style","outline:none;height: 2rem;margin-left: 1rem;border-radius: 0.2rem;border:none";
                 "onclick",onclick
             } ["搜索"]
@@ -35,25 +48,3 @@ document.addEventListener "keyup",(fn x = {
 });
 
 documentHelper.append documentHelper.body parent;
-
-
-let fib x = {
-  if (x <= 0) {
-    0;
-  } else {
-  x + fib (x - 1);
-  };
-}
-fib 4 |> log;
-
-
-let a = [1;2;4;5] + [7];
-a |> list.findIndex fn x = { x = 7; } |> log;
-let b = {"1",2; "3", 4} + {"2", 3};
-(b.("2") + b.("1")) |> log;
-(b.2 + b.1) |> log;
-(b.(1+1) + b.("1") + b.("3")) |> log;
-
-let m = [("sf","343"); ("ssd","123")];
-{m} |> log;
-();

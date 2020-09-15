@@ -913,7 +913,7 @@ type StringObject () =
         (fun () ->  
             let fn (f : IFpObject list) = 
                 let f1 = f.[0] :?> FpStringObject
-                let f2 = f.[0] :?> FpStringObject
+                let f2 = f.[1] :?> FpStringObject
                 { 
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
