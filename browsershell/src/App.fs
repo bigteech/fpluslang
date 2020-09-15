@@ -79,6 +79,7 @@ type DocumentObject () =
     do
         base.Set("createElement", DocumentObject.CreateElement)
         base.Set("getAttr", DocumentObject.GetAttr)
+        base.Set("setAttr", DocumentObject.SetAttr)
         base.Set("getProp", DocumentObject.GetProp)
         base.Set("append", DocumentObject.Append)
         base.Set("getElementById", DocumentObject.GetElementById)
@@ -107,6 +108,31 @@ type DocumentObject () =
                 }
             ) :> IFpObject
         )()
+    static member SetAttr = 
+        (fun () ->
+            let fn (key : IFpObject list) = 
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (element: IFpObject list) =
+                            let el = element.[0] :?> Main.JSObject
+                            let p = el.GetRawObj() :?> Browser.Types.Element
+                            let k = (key.[0] :?> FpStringObject).Value
+                            let v = (key.[1] :?> FpStringObject).Value
+                            p.setAttribute (k,v)
+                            FpNullObject() :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
     static member GetAttr = 
         (fun () ->
             let fn (key : IFpObject list) = 
