@@ -31,6 +31,7 @@ let parent =
         } [
             input {
                 "id","searchinput";
+                "value", if window.location.search {newQ;} else {"";};
                 "style","padding-left:0.5rem;outline:none;font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid #c5c1c1;"
             } [];
             button {
