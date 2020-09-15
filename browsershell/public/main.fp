@@ -6,12 +6,14 @@ let search x = {
     ();
 }
 
-if (window.location.search) {
+if window.location.search {
   let newQ = window.location.search  |> string.replace ("?q=", "");
   search newQ;
   ();
 };
 
+let log = window.console.log;
+let alert = window.alert;
 let onclick () = {
     "searchinput"
         |> documentHelper.getElementById
@@ -19,8 +21,6 @@ let onclick () = {
         |> search;
 }
 
-let log = window.console.log;
-let alert = window.alert;
 let div = documentHelper.createElement "div";
 let span = documentHelper.createElement "span";
 let input = documentHelper.createElement "input";
@@ -31,7 +31,6 @@ let parent =
         } [
             input {
                 "id","searchinput";
-                "value", newQ;
                 "style","padding-left:0.5rem;outline:none;font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid #c5c1c1;"
             } [];
             button {
