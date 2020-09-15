@@ -1,20 +1,16 @@
 let search x = {
-    let l2 = string.concat "https://www.google.com.hk/search?q=" x;
+    let l1 = string.concat "https://www.baidu.com/s?wd=" x;
+    let l2 = string.concat "https://www.google.com/custom?btnG=Search&q=" x;
     let l3 = string.concat "https://cn.bing.com/search?&q=" x;
+    l2 |> windowHelper.goto;
     "c1"
         |> documentHelper.getElementById
-        |> documentHelper.setAttr ("src",l2);
+        |> documentHelper.setAttr ("src",l1);
     "c2"
         |> documentHelper.getElementById
         |> documentHelper.setAttr ("src",l3);
     ();
 }
-
-if window.location.search {
-  let newQ = window.location.search  |> string.replace ("?q=", "");
-  search newQ;
-  ();
-};
 
 let log = window.console.log;
 let alert = window.alert;
@@ -30,6 +26,10 @@ let span = documentHelper.createElement "span";
 let input = documentHelper.createElement "input";
 let button = documentHelper.createElement "button";
 let iframe = documentHelper.createElement "iframe";
+if window.location.search {
+  let newQ = window.location.search  |> string.replace ("?q=", "");
+  ();
+};
 let parent =
     div {} [
       div {
@@ -45,11 +45,11 @@ let parent =
                   "onclick",onclick
               } ["搜索"]
           ];
-      div {} [
-        iframe {"id","c1"} []
+      div {"style","display:inline-block;width:50%"} [
+        iframe {"id","c1";"style","border:none;width:100%;height:1000px"} []
       ];
-      div {} [
-        iframe {"id","c2"} []
+      div {"style","display:inline-block;width:50%"} [
+        iframe {"id","c2";"style","border:none;width:100%;height:1000px"} []
       ]
     ];
 
@@ -61,3 +61,8 @@ document.addEventListener "keyup",(fn x = {
 });
 
 documentHelper.append documentHelper.body parent;
+
+if window.location.search {
+  search newQ;
+  ();
+};
