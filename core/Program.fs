@@ -1273,13 +1273,30 @@ module rec Parser =
                         let ret = [Function ((parseStatement parseState), ps); Store name]
                         parseState.moveNext() |> ignore
                         ret
-                    
                     | _ ->
                         raise (Exception("let需要="))
             | _ ->
                 raise (Exception("let需要名称"))
+
     let parseIfExpression (parseState: ParseState) =
-        let ops = parseExpressionBinaryNode parseState true |> sortExpressionBinary
+        let rec loop demandOp = 
+            if demandOp && (isBinaryOpToken parseState.nextToken) then
+                let ops = parseExpressionBinaryNode parseState false
+                if ops.Length = 0 then
+                    ops
+                else
+                    ops @ loop(false)
+            elif demandOp then
+                []
+            else
+                let ops = parseExpressionBinaryNode parseState false
+                if ops.Length = 0 then
+                    ops
+                else
+                    ops @ loop(true)
+
+        let ops = loop(false) |> sortExpressionBinary
+
         expectWithComment parseState LeftBraceToken "if需要代码块"
         let opsBlock = parseStatement parseState
         expectWithComment parseState RightBraceToken "if代码块需要闭合"
