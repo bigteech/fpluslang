@@ -80,6 +80,7 @@ type DocumentObject () =
         base.Set("createElement", DocumentObject.CreateElement)
         base.Set("getAttr", DocumentObject.GetAttr)
         base.Set("setAttr", DocumentObject.SetAttr)
+        base.Set("addListener", DocumentObject.AddListener)
         base.Set("getProp", DocumentObject.GetProp)
         base.Set("append", DocumentObject.Append)
         base.Set("getElementById", DocumentObject.GetElementById)
@@ -193,6 +194,33 @@ type DocumentObject () =
                 }
             ) :> IFpObject
         )()
+    static member AddListener = 
+        (fun () ->
+            let fn (key : IFpObject list) = 
+                { 
+                    new IFpCallable with
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member this.Call (element: IFpObject list) =
+                            let el = element.[0] :?> Main.JSObject
+                            let p = el.GetRawObj() :?> Browser.Types.Element
+                            let name = (key.[0] :?> FpStringObject).Value
+                            let fnv = key.[1] :?> IFpCallable
+                            p.addEventListener(name, (fun y -> 
+                                fnv.Call ([Main.JSObject(y)]) |> ignore
+                            ))
+                            FpNullObject() :> IFpObject
+                } :> IFpObject
+            (
+                {
+                    new IFpCallable with 
+                        member this.Type = ObjectCategory.FpFunctionObject
+                        member this.IsTrue with get() = true
+                        member x.Call (p: IFpObject list) = fn p
+                }
+            ) :> IFpObject
+        )()
+
     static member GetElementById = 
         (fun () ->
             (

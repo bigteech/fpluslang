@@ -26,15 +26,28 @@ let span = documentHelper.createElement "span";
 let input = documentHelper.createElement "input";
 let button = documentHelper.createElement "button";
 let iframe = documentHelper.createElement "iframe";
+let select = documentHelper.createElement "select";
+let option = documentHelper.createElement "option";
+
 if window.location.search {
   let newQ = window.location.search  |> string.replace ("?q=", "");
   ();
 };
+
 let parent =
     div {} [
       div {
               "style","margin-top:1rem;display: flex;justify-content: center;align-items: center;"
           } [
+              select {"id", "selecter"; "style", "
+                  height: 36px;
+                  border-radius: 6px;
+                  border: 1px solid #c5c1c1;
+                  margin-right: 5px;
+              "} [
+                option {"value","bing"} ["bing"];
+                option {"baidu", "baidu"} ["百度"]
+              ];
               input {
                   "id","searchinput";
                   "value", if window.location.search {newQ;} else {"";};
@@ -45,11 +58,11 @@ let parent =
                   "onclick",onclick
               } ["搜索"]
           ];
-      div {"style","display:inline-block;width:50%"} [
-        iframe {"id","c2";"style","border:none;width:100%;height:1000px"} []
+      div {"style","display:inline-block;width:100%"} [
+        iframe {"id","c2";"style","border:none;width:100%;height:85vh"} []
       ];
-      div {"style","display:inline-block;width:50%"} [
-        iframe {"id","c1";"style","border:none;width:100%;height:1000px"} []
+      div {"style","display:inline-block;width:100%"} [
+        iframe {"id","c1";"style","border:none;width:100%;height:85vh;display:none"} []
       ]
     ];
 
@@ -61,6 +74,30 @@ document.addEventListener "keyup",(fn x = {
 });
 
 documentHelper.append documentHelper.body parent;
+
+"selecter"
+    |> documentHelper.getElementById
+    |> documentHelper.addListener "change",fn x = {
+         if x.target.value = "bing" {
+            "c1"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+            "c2"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
+
+         } else {
+            "c2"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+            "c1"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
+
+        };
+       };
+
+
 
 if window.location.search {
   search newQ;
