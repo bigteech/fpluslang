@@ -64,10 +64,10 @@ let parent =
       div {"style","display:inline-block;width:100%;margin-top:5rem"} [
         iframe {"id","c1";"style","border:none;width:100%;height:90vh"} []
       ];
-      div {"style","display:inline-block;width:100%;margin-top:5rem"} [
+      div {"style","display:inline-block;width:100%;"} [
         iframe {"id","c2";"style","border:none;width:100%;height:90vh;display:none"} []
       ];
-      div {"style","display:inline-block;width:100%;margion-top:5rem"} [
+      div {"style","display:inline-block;width:100%;"} [
         iframe {"id","c3";"style","border:none;width:100%;height:80vh;display:none"} []
       ]
     ];
