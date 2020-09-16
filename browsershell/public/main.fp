@@ -1,12 +1,14 @@
 let search x = {
-    let l1 = string.concat "https://www.baidu.com/s?wd=" x;
-    let l2 = string.concat "https://www.google.com/custom?btnG=Search&q=" x;
-    let l3 = string.concat "https://cn.bing.com/search?&q=" x;
-    l2 |> windowHelper.goto;
+    let l1 = string.concat "https://www.google.com/webhp?igu=1&q=" x;
+    let l2 = string.concat "https://cn.bing.com/search?&q=" x;
+    let l3 = string.concat "https://www.baidu.com/s?wd=" x;
     "c1"
         |> documentHelper.getElementById
         |> documentHelper.setAttr ("src",l1);
     "c2"
+        |> documentHelper.getElementById
+        |> documentHelper.setAttr ("src",l2);
+    "c3"
         |> documentHelper.getElementById
         |> documentHelper.setAttr ("src",l3);
     ();
@@ -37,7 +39,7 @@ if window.location.search {
 let parent =
     div {} [
       div {
-              "style","margin-top:1rem;display: flex;justify-content: center;align-items: center;"
+              "style","position:fixed;width:100%;box-shadow:0 2px 8px #f0f1f2;padding-bottom:1rem;padding-top:1rem;display: flex;justify-content: center;align-items: center;position: fixed;width: 100%;"
           } [
               select {"id", "selecter"; "style", "
                   height: 36px;
@@ -45,8 +47,9 @@ let parent =
                   border: 1px solid #c5c1c1;
                   margin-right: 5px;
               "} [
+                option {"value", "google"} ["google"];
                 option {"value","bing"} ["bing"];
-                option {"baidu", "baidu"} ["百度"]
+                option {"value", "baidu"} ["百度"]
               ];
               input {
                   "id","searchinput";
@@ -58,11 +61,14 @@ let parent =
                   "onclick",onclick
               } ["搜索"]
           ];
-      div {"style","display:inline-block;width:100%"} [
-        iframe {"id","c2";"style","border:none;width:100%;height:85vh"} []
+      div {"style","display:inline-block;width:100%;margin-top:5rem"} [
+        iframe {"id","c1";"style","border:none;width:100%;height:90vh"} []
       ];
-      div {"style","display:inline-block;width:100%"} [
-        iframe {"id","c1";"style","border:none;width:100%;height:85vh;display:none"} []
+      div {"style","display:inline-block;width:100%;margin-top:5rem"} [
+        iframe {"id","c2";"style","border:none;width:100%;height:90vh;display:none"} []
+      ];
+      div {"style","display:inline-block;width:100%;margion-top:5rem"} [
+        iframe {"id","c3";"style","border:none;width:100%;height:80vh;display:none"} []
       ]
     ];
 
@@ -78,6 +84,18 @@ documentHelper.append documentHelper.body parent;
 "selecter"
     |> documentHelper.getElementById
     |> documentHelper.addListener "change",fn x = {
+         if x.target.value = "google" {
+            "c1"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
+            "c2"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+            "c3"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+
+         };
          if x.target.value = "bing" {
             "c1"
                 |> documentHelper.getElementById
@@ -85,15 +103,20 @@ documentHelper.append documentHelper.body parent;
             "c2"
                 |> documentHelper.getElementById
                 |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
-
-         } else {
+            "c3"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+        };
+        if x.target.value = "baidu" {
+            "c1"
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
             "c2"
                 |> documentHelper.getElementById
                 |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
-            "c1"
+            "c3"
                 |> documentHelper.getElementById
                 |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
-
         };
        };
 
