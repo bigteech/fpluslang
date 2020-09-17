@@ -15,7 +15,7 @@ let jsCall (x: Object) (y: Object list): Object = jsNative
 let getType (x: Object): string = jsNative
 [<Emit("$0")>]
 let toAny (x: Object) = jsNative
-[<Emit("$.ajax({type: \"GET\",url: $0,async: false}).responseText")>]
+[<Emit("(() => {var xhr = new XMLHttpRequest();xhr.open(\"GET\", $0, false);xhr.send(null);return xhr.responseText})()")>]
 let fetchCode (x: string): string = jsNative
 
 
