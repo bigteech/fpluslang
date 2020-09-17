@@ -523,6 +523,16 @@ type AndFunction () =
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
+type OrFunction () =
+    interface IFpCallable with
+        member this.Call(args: IFpObject list): IFpObject =
+            FpBooleanObject (args.[0].IsTrue || args.[1].IsTrue) :> IFpObject
+
+    interface IFpObject with
+        member this.Type = ObjectCategory.FpFunctionObject
+        member this.IsTrue with get() = true
+
+
 
 let ListCreateFunction  () =
     {
@@ -1592,6 +1602,7 @@ module Vm =
         globalScope.Add("string", StringObject())
         globalScope.Add("not", NotFunction())
         globalScope.Add("and", AndFunction())
+        globalScope.Add("or", OrFunction())
         globalScope.Add("true", FpBooleanObject(true))
         globalScope.Add("false", FpBooleanObject(false))
 
