@@ -116,4 +116,3 @@ if window.location.search {
   search newQ;
   ();
 };
-
