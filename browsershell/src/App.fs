@@ -15,6 +15,9 @@ let jsCall (x: Object) (y: Object list): Object = jsNative
 let getType (x: Object): string = jsNative
 [<Emit("$0")>]
 let toAny (x: Object) = jsNative
+[<Emit("$.ajax({type: \"GET\",url: $0,async: false}).responseText")>]
+let fetchCode (x: string): string = jsNative
+
 
 module rec Main =
     let rec ConvertFpObject2JsObject (p: IFpObject) =
@@ -325,10 +328,26 @@ type WindowObject () =
                         FpNullObject() :> IFpObject
             }
         ) :> IFpObject
+
+type ImportFunction () =
+    interface IFpCallable with
+        member this.Call(args: IFpObject list): IFpObject =
+            let ret = fetchCode (args.[0] :?> FpStringObject).Value
+            let ops = Parser.parseSourceElement ret
+            let f = FpFunctionObject([], (fun x -> None))
+            f.PushToOpList ops
+            (Vm.eval f) :?> IFpObject
+
+    interface IFpObject with
+        member this.Type = ObjectCategory.FpFunctionObject
+        member this.IsTrue with get() = true
+
+
 addGlobalObject "document" (Main.JSObject(Browser.Dom.document))
 addGlobalObject "window" (Main.JSObject(Browser.Dom.window))
 addGlobalObject "windowHelper" (WindowObject())
 addGlobalObject "documentHelper" (DocumentObject())
+addGlobalObject "import" (ImportFunction())
 
 fetch "./main.fp" [] // use the fetch api to load our resource
     |> Promise.bind (fun res -> res.text()) // get the resul

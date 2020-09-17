@@ -1,12 +1,14 @@
-let log = window.console.log;
-let alert = window.alert;
-let div = documentHelper.createElement "div";
-let span = documentHelper.createElement "span";
-let input = documentHelper.createElement "input";
-let button = documentHelper.createElement "button";
-let iframe = documentHelper.createElement "iframe";
-let select = documentHelper.createElement "select";
-let option = documentHelper.createElement "option";
+let util = import "/util.fp";
+
+let log = util.log;
+let alert = util.alert;
+let div = util.div;
+let span = util.span;
+let input = util.input;
+let button = util.button;
+let iframe = util.iframe;
+let select = util.select;
+let option = util.option;
 
 let search x = {
     let l1 = string.concat "https://www.google.com/webhp?igu=1&q=" x;
