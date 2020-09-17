@@ -9,7 +9,7 @@ type FcStack<'T>() =
         let ret = m.[m.Count-1]
         m.RemoveAt(m.Count-1)
         ret
-    member x.Push (y: 'T) = 
+    member x.Push (y: 'T) =
         m.Add(y)
 
 
@@ -47,7 +47,7 @@ type Token =
     | AssignToken
 
 let isBinaryOpToken token =
-    match token with 
+    match token with
         | AddToken
         | SubToken
         | MulToken
@@ -65,7 +65,6 @@ let isBinaryOpToken token =
         | _ ->
             false
 
-    
 type ObjectCategory =
     | FpHashObject = 0
     | FpNumberObject = 1
@@ -140,24 +139,24 @@ type FpStringObject(p: string) =
 
     static member Add(p1:FpStringObject, p2: FpStringObject) =
         FpStringObject(p1.Value + p2.Value)
-    
+
     member this.Value with get() = p
     override this.ToString() = p.ToString()
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpStringObject
         member this.IsTrue with get() = (p <> "")
 
-type FpNullObject() = 
-    override this.ToString() = 
+type FpNullObject() =
+    override this.ToString() =
         raise (Exception "null不能ToString")
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpNullObject
         member this.IsTrue with get() = false
 
 type FpHashObject() =
     let kvs = new Collections.Generic.Dictionary<string, IFpObject>();
-    
-    member this.Set m = 
+
+    member this.Set m =
         let p,v = m;
         try
             if kvs.ContainsKey p then
@@ -167,7 +166,7 @@ type FpHashObject() =
             | _ ->
                 ()
 
-    static member Add (x: FpHashObject, y:FpHashObject) = 
+    static member Add (x: FpHashObject, y:FpHashObject) =
         let ret = FpHashObject()
         for m in x.Keys() do
             ret.Set (m, x.Get(m))
@@ -175,16 +174,16 @@ type FpHashObject() =
             ret.Set (m, y.Get(m))
         ret
 
-    member this.Count () = 
+    member this.Count () =
         kvs.Count
 
-    member this.ContainsKey (p: string) = 
+    member this.ContainsKey (p: string) =
         kvs.ContainsKey p
 
-    member this.Values () = 
+    member this.Values () =
         List.ofSeq kvs.Values
 
-    member this.Keys () = 
+    member this.Keys () =
         List.ofSeq kvs.Keys
 
     member this.Get(p: string) =
@@ -200,7 +199,7 @@ type FpHashObject() =
 
         member this.Set m =
             this.Set m
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpHashObject
         member this.IsTrue with get() = true
 
@@ -209,85 +208,85 @@ let mutable globalScope = new System.Collections.Generic.Dictionary<string, IFpO
 
 
 type FpBooleanObject(v: bool)=
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpBooleanObject
         member this.IsTrue = v
 
 
 type FpListObject()=
     inherit FpHashObject();
-    
-    member this.Init(p: IFpObject list) = 
+   
+    member this.Init(p: IFpObject list) =
         if p.Length = 0 then
             ()
         else
-            for i=0 to (p.Length-1) do 
+            for i=0 to (p.Length-1) do
                 base.Set(i.ToString(), p.[i])
         ()
 
-    static member Add (x: FpListObject, y:FpListObject) = 
+    static member Add (x: FpListObject, y:FpListObject) =
         let ret = FpListObject()
         ret.Init (x.Values() @ y.Values())
         ret
 
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpListObject
-  
+ 
 type FpTupleObject()=
     inherit FpHashObject();
-    
+   
     let mutable freeze = false;
 
-    member this.Freeze () = 
+    member this.Freeze () =
         freeze <- true
 
     member this.IsFreeze () =
         freeze
 
-    member this.Set m = 
+    member this.Set m =
         raise (Exception "tuple 不能更改值")
 
     member this.Values =
         base.Values()
 
-    member this.Init(p: IFpObject list) = 
-        for i=0 to (p.Length-1) do 
+    member this.Init(p: IFpObject list) =
+        for i=0 to (p.Length-1) do
             base.Set(i.ToString(), p.[i])
         FpTupleObject()
 
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpTupleObject
 
-type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject option) = 
+type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject option) =
     let mutable oplst: Op list = []
 
     member this.OpList with get() = oplst
     member this.PushToOpList(p) = oplst <- (oplst @ p);
 
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
-    interface IFpCallable with 
-        member this.Call(args: IFpObject list): IFpObject = 
+    interface IFpCallable with
+        member this.Call(args: IFpObject list): IFpObject =
             let stack = FcStack<IFpObject>()
             let mutable scope = new System.Collections.Generic.Dictionary<string, IFpObject>();
             if argsNames.Length > 0 then
                 for i = 0 to (argsNames.Length - 1) do scope.Add(argsNames.[i], args.[i])
             let mutable index = 0
-            let getVarForChind name = 
+            let getVarForChind name =
                 try
                     Some (scope.[name])
                 with
                     | _ ->
                         getClosureVar name
 
-            let getVarByName name = 
+            let getVarByName name =
                 match (getVarForChind name) with
                     | Some x ->
                         x
                     | _ ->
                         globalScope.[name]
-                
+               
             let eval op =
                 match op with
                     | LoadConst x ->
@@ -313,13 +312,13 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                         FpNumberObject(l1.Value - l2.Value) |>  stack.Push
                         1
                     | Or ->
-                        let l2 = stack.Pop() 
-                        let l1 = stack.Pop() 
+                        let l2 = stack.Pop()
+                        let l1 = stack.Pop()
                         FpBooleanObject(l1.IsTrue || l2.IsTrue) |>  stack.Push
                         1
                     | And ->
-                        let l2 = stack.Pop() 
-                        let l1 = stack.Pop() 
+                        let l2 = stack.Pop()
+                        let l1 = stack.Pop()
                         FpBooleanObject(l1.IsTrue && l2.IsTrue) |>  stack.Push
                         1
                     | Divi ->
@@ -403,7 +402,7 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                                     obj.Values
                             | _ ->
                                 [l1])
-                        
+                       
                         let ret = FpTupleObject()
                         ret.Init (v1 @ v2) |> ignore
                         ret |>  stack.Push
@@ -411,7 +410,7 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                     | Get ->
                         let l2 = stack.Pop()
                         let l1 = stack.Pop() :?> IFpHashable
-                        
+                       
                         if l2.Type = ObjectCategory.FpStringObject then
                             stack.Push (l1.Get (l2 :?> FpStringObject).Value)
                         else
@@ -422,7 +421,7 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                         let l2 = stack.Pop()
                         let l1 = stack.Pop() :?> IFpHashable
 
-                        
+                       
                         if l2.Type = ObjectCategory.FpStringObject then
                             l1.Set ((l2 :?> FpStringObject).Value, l3)
                             stack.Push l3
@@ -450,15 +449,15 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                                 raise (Exception "字符串不能相乘")
                         |>  stack.Push
                         1
-            
+           
             while index < oplst.Length do
                 index <- index + (eval (oplst.[index]))
             downcast stack.Pop()
 
 type TypeOfFunction () =
-    interface IFpCallable with 
+    interface IFpCallable with
         member this.Call(args: IFpObject list): IFpObject =
-            match args.[0].Type with 
+            match args.[0].Type with
                 | ObjectCategory.FpStringObject->
                     "string"
                 | ObjectCategory.FpNumberObject->
@@ -475,19 +474,19 @@ type TypeOfFunction () =
                     "list"
                 | ObjectCategory.FpNullObject->
                     "null"
-            |> (fun x -> 
+            |> (fun x ->
                 FpStringObject x :> IFpObject
             )
 
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
 type PrintFunction () =
-    interface IFpCallable with 
+    interface IFpCallable with
         member this.Call(args: IFpObject list): IFpObject =
-            let temp (p: IFpObject): string = 
-                match p.Type with 
+            let temp (p: IFpObject): string =
+                match p.Type with
                     | ObjectCategory.FpStringObject->
                         (p :?> FpStringObject).Value
                     | ObjectCategory.FpNumberObject->
@@ -502,26 +501,36 @@ type PrintFunction () =
             String.Join("", args |> List.map temp) |> printf "%s"
             upcast FpNullObject()
 
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
 type NotFunction () =
-    interface IFpCallable with 
+    interface IFpCallable with
         member this.Call(args: IFpObject list): IFpObject =
             FpBooleanObject (not args.[0].IsTrue) :> IFpObject
 
-    interface IFpObject with 
+    interface IFpObject with
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
+type AndFunction () =
+    interface IFpCallable with
+        member this.Call(args: IFpObject list): IFpObject =
+            FpBooleanObject (args.[0].IsTrue && args.[1].IsTrue) :> IFpObject
+
+    interface IFpObject with
+        member this.Type = ObjectCategory.FpFunctionObject
+        member this.IsTrue with get() = true
+
+
 let ListCreateFunction  () =
     {
-        new IFpCallable with 
+        new IFpCallable with
             member this.Call(args: IFpObject list): IFpObject =
                 let ret = FpListObject()
                 ret.Init (args) |> ignore
-                upcast ret 
+                upcast ret
             member this.Type = ObjectCategory.FpFunctionObject
             member this.IsTrue with get() = true
     } :> IFpObject
@@ -536,11 +545,11 @@ type ListObject () =
         base.Set("find", ListObject.Find)
         base.Set("findIndex", ListObject.FindIndex)
 
-    static member FindIndex = 
+    static member FindIndex =
         (fun () ->
-            let fn (f : IFpObject list) = 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> IFpCallable
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -548,27 +557,27 @@ type ListObject () =
                             let ret = FpListObject()
                             let ls = p.[0] :?> FpListObject
                             try
-                                (FpNumberObject (ls.Values() |> List.findIndex (fun x -> 
+                                (FpNumberObject (ls.Values() |> List.findIndex (fun x ->
                                     (f1.Call [x]).IsTrue
                                 ))) :> IFpObject
-                            with 
+                            with
                                 | _ ->
                                     FpNullObject() :> IFpObject
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
                 }
             ) :> IFpObject
         )()
-    static member Find  = 
+    static member Find  =
         (fun () ->
-            let fn (f : IFpObject list) = 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> IFpCallable
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -576,16 +585,16 @@ type ListObject () =
                             let ret = FpListObject()
                             let ls = p.[0] :?> FpListObject
                             try
-                                ls.Values() |> List.find (fun x -> 
+                                ls.Values() |> List.find (fun x ->
                                     (f1.Call [x]).IsTrue
                                 )
-                            with 
+                            with
                                 | _ ->
                                     FpNullObject() :> IFpObject
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -594,7 +603,7 @@ type ListObject () =
         )()
     static member Length =
         (fun () ->
-            { 
+            {
                 new IFpCallable with
                     member this.Type = ObjectCategory.FpFunctionObject
                     member this.IsTrue with get() = true
@@ -602,23 +611,23 @@ type ListObject () =
                         FpNumberObject(p.Length) :> IFpObject
             } :> IFpObject
         )()
-    static member Each = 
-        (fun () -> 
-            let fn (f : IFpObject list) = 
+    static member Each =
+        (fun () ->
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> IFpCallable
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
                             let ls = p.[0] :?> FpListObject
                             for x in ls.Values() do
-                                f1.Call [x] |> ignore 
+                                f1.Call [x] |> ignore
                             FpNullObject() :> IFpObject
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -626,25 +635,25 @@ type ListObject () =
             ) :> IFpObject
         )()
     static member Map =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> IFpCallable
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member this.Call (p: IFpObject list) =
                             let ret = FpListObject()
                             let ls = p.[0] :?> FpListObject
-                            let ret2 = ls.Values() |> List.map (fun x -> 
+                            let ret2 = ls.Values() |> List.map (fun x ->
                                     f1.Call [x]
-                                ) 
+                                )
                             ret.Init ret2
                             upcast ret
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -655,7 +664,7 @@ type ListObject () =
 
 let HashObjectCreateFunction () =
     {
-         new IFpCallable with 
+         new IFpCallable with
             member this.Call(args: IFpObject list): IFpObject =
                 let ret = FpHashObject()
                 if args.Length = 1 then
@@ -675,21 +684,21 @@ let HashObjectCreateFunction () =
                         let k = t.Values.[0] :?> FpStringObject
                         let v = t.Values.[1]
                         ret.Set(k.Value,v)
-                upcast ret 
+                upcast ret
 
             member this.Type = ObjectCategory.FpFunctionObject
             member this.IsTrue with get() = true
     }
-    
+   
 
 let TupleObjectCreateFunction () =
     {
-        new IFpCallable with 
+        new IFpCallable with
             member this.Call(args: IFpObject list): IFpObject =
                 let ret = FpTupleObject()
                 ret.Init (args) |> ignore
                 ret.Freeze()
-                upcast ret 
+                upcast ret
             member this.Type = ObjectCategory.FpTupleObject
             member this.IsTrue with get() = true
     }
@@ -697,19 +706,19 @@ let TupleObjectCreateFunction () =
 
 type HashObject () =
     inherit FpHashObject();
-    
+   
     do
         base.Set("create", upcast HashObjectCreateFunction())
         base.Set("keys", HashObject.Keys)
         base.Set("values", HashObject.Values)
         base.Set("count", HashObject.Count)
         base.Set("contain", HashObject.ContainsKey)
-    
-    static member ContainsKey = 
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+   
+    static member ContainsKey =
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -719,7 +728,7 @@ type HashObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -728,28 +737,28 @@ type HashObject () =
         )()
 
 
-    static member Count = 
-        (fun () ->  
+    static member Count =
+        (fun () -> 
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
-                        member x.Call (p: IFpObject list) = 
+                        member x.Call (p: IFpObject list) =
                             let p1 = p.[0] :?> FpHashObject
                             (FpNumberObject(p1.Count())) :> IFpObject
                 }
             ) :> IFpObject
         )()
 
-    static member Keys = 
-        (fun () ->  
+    static member Keys =
+        (fun () -> 
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
-                        member x.Call (p: IFpObject list) = 
+                        member x.Call (p: IFpObject list) =
                             let p1 = p.[0] :?> FpHashObject
                             let ret = FpListObject()
                             ret.Init [for x in p1.Keys() do yield FpStringObject x]
@@ -758,14 +767,14 @@ type HashObject () =
             ) :> IFpObject
         )()
 
-    static member Values = 
-        (fun () ->  
+    static member Values =
+        (fun () -> 
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
-                        member x.Call (p: IFpObject list) = 
+                        member x.Call (p: IFpObject list) =
                             let p1 = p.[0] :?> FpHashObject
                             let ret = FpListObject()
                             ret.Init (p1.Values())
@@ -790,10 +799,10 @@ type StringObject () =
         base.Set("trimStart", StringObject.TrimStart )
         base.Set("trimEnd", StringObject.TrimEnd )
     static member Concat =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -804,7 +813,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -813,13 +822,13 @@ type StringObject () =
         )()
 
     static member TrimEnd =
-        (fun () ->  
+        (fun () -> 
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
-                        member x.Call (f: IFpObject list) = 
+                        member x.Call (f: IFpObject list) =
                             let f1 = f.[0] :?> FpStringObject
                             FpStringObject(f1.Value.TrimEnd()) :> IFpObject
                 }
@@ -827,13 +836,13 @@ type StringObject () =
         )()
 
     static member TrimStart =
-        (fun () ->  
+        (fun () -> 
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
-                        member x.Call (f: IFpObject list) = 
+                        member x.Call (f: IFpObject list) =
                             let f1 = f.[0] :?> FpStringObject
                             FpStringObject(f1.Value.TrimStart()) :> IFpObject
                 }
@@ -841,10 +850,10 @@ type StringObject () =
         )()
 
     static member EndsWith =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -855,7 +864,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -864,10 +873,10 @@ type StringObject () =
         )()
 
     static member StartsWith =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -878,7 +887,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -887,10 +896,10 @@ type StringObject () =
         )()
 
     static member charAt =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpNumberObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -901,7 +910,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -910,11 +919,11 @@ type StringObject () =
         )()
 
     static member Replace =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
                 let f2 = f.[1] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -925,7 +934,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -934,10 +943,10 @@ type StringObject () =
         )()
 
     static member Split =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -951,7 +960,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -960,10 +969,10 @@ type StringObject () =
         )()
 
     static member Join =
-        (fun () ->  
-            let fn (f : IFpObject list) = 
+        (fun () -> 
+            let fn (f : IFpObject list) =
                 let f1 = f.[0] :?> FpStringObject
-                { 
+                {
                     new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
@@ -973,7 +982,7 @@ type StringObject () =
                 } :> IFpObject
             (
                 {
-                    new IFpCallable with 
+                    new IFpCallable with
                         member this.Type = ObjectCategory.FpFunctionObject
                         member this.IsTrue with get() = true
                         member x.Call (p: IFpObject list) = fn p
@@ -988,9 +997,9 @@ let addGlobalObject x y =
         globalScope <- new System.Collections.Generic.Dictionary<string, IFpObject>();
     globalScope.Add(x, y)
 
-let maxLevel = 10 
+let maxLevel = 10
 let getLevelByToken token =
-    match token with 
+    match token with
         | VirtualCommaToken -> 8
         | GtToken | LtToken | GteToken | LteToken | BindToken -> 6
         | AddToken -> 6
@@ -1003,7 +1012,7 @@ let getLevelByToken token =
         | DotToken -> 0
         | _ ->
             raise (Exception "异常的符号")
-        
+       
 
 
 type ParseState = {
@@ -1013,7 +1022,7 @@ type ParseState = {
     mutable token: Token list
 }
 
-type ParseState with 
+type ParseState with
     member z.moveNext()=
         if z.index = (z.token.Length - 1)then
             Eof
@@ -1026,17 +1035,17 @@ type ParseState with
             else
               z.token.[z.index+1]
     member z.currentToken with get() = z.token.[z.index]
-    member z.pushOp x = z.op <- z.op @ [x] 
+    member z.pushOp x = z.op <- z.op @ [x]
     member z.pushOps x = z.op <- z.op @ x
     member z.pushToken x = z.token <-  z.token @ [x]
 
 
 type OpOrToken =
     | Op of Op list
-    | Token of Token 
+    | Token of Token
     | Done of OpOrToken list
 
-module Lexical = 
+module Lexical =
     let isWordChar a =
         (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || a = '_' || a = '-' || a = '$' || (a >= '0' && a <= '9')
 
@@ -1089,7 +1098,7 @@ module Lexical =
                           let m,n =getKeyWord text.[index..x-1]
                           m, (index+n)
                           )
-                  | a when Char.IsNumber a-> 
+                  | a when Char.IsNumber a->
                       getNumber text index
                       |> (fun x ->
                           let t = text.[index..x-1]
@@ -1176,24 +1185,24 @@ module Lexical =
                         parseState.pushToken t
                         temp i
         temp 0
-    
+   
 module Grammer =
     type Node = {
         tokenType: Token
         children: Node list
     }
 
-let getObjectByToken token: Op list = 
+let getObjectByToken token: Op list =
     match token with
-        | NumberToken x -> 
+        | NumberToken x ->
             [LoadConst (FpNumberObject(x))]
         | StringToken x ->
             [LoadConst (FpStringObject(x))]
         | IdenToken x ->
             [LoadVar x]
-        
+       
 
-let getOpByToken token = 
+let getOpByToken token =
     match token with
         | PipeToken -> Call
         | CommaToken | VirtualCommaToken -> Zip
@@ -1223,7 +1232,7 @@ let expectWithComment (parseState: ParseState) token comment =
         raise (Exception comment)
 
 module rec Parser =
-    let parseParams (parseState: ParseState): string list = 
+    let parseParams (parseState: ParseState): string list =
         let rec parse () =
             let token = parseState.moveNext()
             match token with
@@ -1279,7 +1288,7 @@ module rec Parser =
                 raise (Exception("let需要名称"))
 
     let parseIfExpression (parseState: ParseState) =
-        let rec loop demandOp = 
+        let rec loop demandOp =
             if demandOp && (isBinaryOpToken parseState.nextToken) then
                 let ops = parseExpressionBinaryNode parseState false
                 if ops.Length = 0 then
@@ -1306,15 +1315,15 @@ module rec Parser =
                     expectWithComment parseState LeftBraceToken "else需要代码块"
                     let opsElseBlock = parseStatement parseState
                     expectWithComment parseState RightBraceToken "if代码块需要闭合"
-                    ops 
-                    @ [JumpIfFalse (opsBlock.Length + 2)] 
-                    @ opsBlock 
-                    @ [Jump (opsElseBlock.Length + 1)] 
+                    ops
+                    @ [JumpIfFalse (opsBlock.Length + 2)]
+                    @ opsBlock
+                    @ [Jump (opsElseBlock.Length + 1)]
                     @ opsElseBlock
                 | _ ->
                     ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
 
-    let sortExpressionBinary (ls: OpOrToken list): Op list = 
+    let sortExpressionBinary (ls: OpOrToken list): Op list =
         let rec joinCall (ls: OpOrToken list) =
             let mutable index = -1;
             for i=0 to ls.Length-2 do
@@ -1322,29 +1331,29 @@ module rec Parser =
                 let next = ls.[i+1];
                 let isCall = (match current with
                     | Op _ | Done _ ->
-                        true                  
+                        true                 
                     | _ ->
                         false) && (match next with
                     | Op _ | Done _ ->
-                        true                  
+                        true                 
                     | _ ->
                         false)
                 if isCall && index = -1 then
                     index <- i
             if index > -1 then
                 joinCall (
-                    (ls.[0..index-1]) 
+                    (ls.[0..index-1])
                     @ [Done [ls.[index+1]; ls.[index]; Op [Call]]]
-                    @ (ls.[index+2..ls.Length-1]) 
+                    @ (ls.[index+2..ls.Length-1])
                 )
             else
-                ls  
-                
+                ls 
+               
         let rec sort (ls: OpOrToken list) level =
             let index = ls |> List.tryFindIndex (fun x ->
                 match x with
                     | Token y ->
-                        (getLevelByToken y) = level                      
+                        (getLevelByToken y) = level                     
                     | _ ->
                         false
             )
@@ -1355,9 +1364,9 @@ module rec Parser =
                             let v1 = ls.[x-1];
                             let v2 = ls.[x+1];
                             sort (
-                                (ls.[0..x-2]) 
+                                (ls.[0..x-2])
                                 @ [Done [v1; v2; Op [getOpByToken y]]]
-                                @ (ls.[x+2..ls.Length-1]) 
+                                @ (ls.[x+2..ls.Length-1])
                             ) level
                         | _ -> raise (Exception "cant access")
                 | _ ->
@@ -1365,11 +1374,11 @@ module rec Parser =
         let rec sortAll ls level =
             if level <= maxLevel then
                 sortAll (sort ls level) (level+1)
-            else 
+            else
                 ls
 
         let ret = ResizeArray()
-        
+       
         let rec unstruct x =
             match x with
                 | Op t ->
@@ -1450,11 +1459,11 @@ module rec Parser =
                 []
 
     let parseExpressionBinary (parseState: ParseState) : OpOrToken list =
-        let rec loop () = 
+        let rec loop () =
             let ops = parseExpressionBinaryNode parseState false
             if ops.Length = 0 then
                 ops
-            else 
+            else
                 ops @ loop()
         loop()
 
@@ -1483,7 +1492,7 @@ module rec Parser =
                     | _ ->
                         ops
         let ops = parse ()
-        
+       
         ops @ [Token PipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
 
     let parseExpressionNewArray (parseState: ParseState) =
@@ -1531,10 +1540,10 @@ module rec Parser =
         expect parseState RightBraceToken
         let ops2 = (
             if index > 1 then
-                ops @ [for x in [1 .. index-1] do yield Zip] 
-            else 
+                ops @ [for x in [1 .. index-1] do yield Zip]
+            else
                 ops
-        )  
+        ) 
         if ops.Length = 0 then
             let emptyTuple = FpTupleObject()
             emptyTuple.Freeze()
@@ -1549,13 +1558,12 @@ module rec Parser =
         expectWithComment parseState SemiToken "表达式需要;结尾"
         ops
 
-    let parseStatement (parseState: ParseState): Op list = 
+    let parseStatement (parseState: ParseState): Op list =
         let rec parse () =
             let m = (
                 match parseState.nextToken with
                     | Eof | RightBraceToken ->
                         [Exit]
-                    
                     | LetToken ->
                         (parseBindStatement parseState)
                     | _  ->
@@ -1563,7 +1571,7 @@ module rec Parser =
             )
             if m.Length = 1 && m.[0] = Exit then
                 []
-            else 
+            else
                 m @ parse()
         parse()
 
@@ -1574,7 +1582,7 @@ module rec Parser =
         parseState.pushOps ops
         parseState.op
 
-module Vm = 
+module Vm =
     let init () =
         globalScope.Add("print", PrintFunction())
         globalScope.Add("typeof", TypeOfFunction())
@@ -1583,6 +1591,7 @@ module Vm =
         globalScope.Add("tuple", TupleObject())
         globalScope.Add("string", StringObject())
         globalScope.Add("not", NotFunction())
+        globalScope.Add("and", AndFunction())
         globalScope.Add("true", FpBooleanObject(true))
         globalScope.Add("false", FpBooleanObject(false))
 

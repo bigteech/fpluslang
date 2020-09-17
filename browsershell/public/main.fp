@@ -1,3 +1,13 @@
+let log = window.console.log;
+let alert = window.alert;
+let div = documentHelper.createElement "div";
+let span = documentHelper.createElement "span";
+let input = documentHelper.createElement "input";
+let button = documentHelper.createElement "button";
+let iframe = documentHelper.createElement "iframe";
+let select = documentHelper.createElement "select";
+let option = documentHelper.createElement "option";
+
 let search x = {
     let l1 = string.concat "https://www.google.com/webhp?igu=1&q=" x;
     let l2 = string.concat "https://cn.bing.com/search?&q=" x;
@@ -14,23 +24,12 @@ let search x = {
     ();
 }
 
-let log = window.console.log;
-let alert = window.alert;
 let onclick () = {
     "searchinput"
         |> documentHelper.getElementById
         |> documentHelper.getProp "value"
         |> search;
 }
-
-let div = documentHelper.createElement "div";
-let span = documentHelper.createElement "span";
-let input = documentHelper.createElement "input";
-let button = documentHelper.createElement "button";
-let iframe = documentHelper.createElement "iframe";
-let select = documentHelper.createElement "select";
-let option = documentHelper.createElement "option";
-
 if window.location.search {
   let newQ = window.location.search  |> string.replace ("?q=", "");
   ();
@@ -119,8 +118,6 @@ documentHelper.append documentHelper.body parent;
                 |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
         };
        };
-
-
 
 if window.location.search {
   search newQ;
