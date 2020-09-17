@@ -1304,7 +1304,7 @@ module rec Parser =
                 if ops.Length = 0 then
                     ops
                 else
-                    ops @ loop(false)
+                    ops @ loop((ops.Length % 2 = 0))
             elif demandOp then
                 []
             else
@@ -1312,7 +1312,7 @@ module rec Parser =
                 if ops.Length = 0 then
                     ops
                 else
-                    ops @ loop(true)
+                    ops @ loop((ops.Length % 2 > 0))
 
         let ops = loop(false) |> sortExpressionBinary
 

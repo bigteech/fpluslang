@@ -67,7 +67,7 @@ let parent =
     ];
 
 document.addEventListener "keyup",fn x = {
-    if (x.code = "Enter") {
+    if x.code = "Enter" {
         onclick();
     };
     ();
