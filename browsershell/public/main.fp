@@ -11,18 +11,14 @@ let select = util.select;
 let option = util.option;
 
 let search x = {
-    let l1 = string.concat "https://www.google.com/webhp?igu=1&q=" x;
-    let l2 = string.concat "https://cn.bing.com/search?&q=" x;
-    let l3 = string.concat "https://www.baidu.com/s?wd=" x;
-    "c1"
-        |> documentHelper.getElementById
-        |> documentHelper.setAttr "src",l1;
-    "c2"
-        |> documentHelper.getElementById
-        |> documentHelper.setAttr "src",l2;
-    "c3"
-        |> documentHelper.getElementById
-        |> documentHelper.setAttr "src",l3;
+    [
+        (string.concat "https://www.google.com/webhp?igu=1&q=" x),"c1";
+        (string.concat "https://www.google.com/webhp?igu=1&q=" x),"c2";
+        (string.concat "https://www.baidu.com/s?wd=" x),"c3"
+    ] 
+        |> list.each fn x,y = {
+            y |> documentHelper.getElementById |> documentHelper.setAttr "src",x;
+        };
     ();
 }
 

@@ -632,7 +632,10 @@ type ListObject () =
                         member this.Call (p: IFpObject list) =
                             let ls = p.[0] :?> FpListObject
                             for x in ls.Values() do
-                                f1.Call [x] |> ignore
+                                if x.Type = ObjectCategory.FpTupleObject then
+                                    f1.Call (x :?> FpTupleObject).Values |> ignore
+                                else
+                                    f1.Call [x] |> ignore
                             FpNullObject() :> IFpObject
                 } :> IFpObject
             (
@@ -656,7 +659,10 @@ type ListObject () =
                             let ret = FpListObject()
                             let ls = p.[0] :?> FpListObject
                             let ret2 = ls.Values() |> List.map (fun x ->
-                                    f1.Call [x]
+                                    if x.Type = ObjectCategory.FpTupleObject then
+                                        f1.Call (x :?> FpTupleObject).Values
+                                    else
+                                        f1.Call [x]
                                 )
                             ret.Init ret2
                             upcast ret
