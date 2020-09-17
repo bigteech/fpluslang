@@ -1,4 +1,4 @@
-let util = import "/util.fp";
+let util = import "./util.fp";
 
 let log = util.log;
 let alert = util.alert;
