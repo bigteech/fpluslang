@@ -14,13 +14,13 @@ let search x = {
     let l3 = string.concat "https://www.baidu.com/s?wd=" x;
     "c1"
         |> documentHelper.getElementById
-        |> documentHelper.setAttr ("src",l1);
+        |> documentHelper.setAttr "src",l1;
     "c2"
         |> documentHelper.getElementById
-        |> documentHelper.setAttr ("src",l2);
+        |> documentHelper.setAttr "src",l2;
     "c3"
         |> documentHelper.getElementById
-        |> documentHelper.setAttr ("src",l3);
+        |> documentHelper.setAttr "src",l3;
     ();
 }
 
@@ -32,7 +32,7 @@ let onclick () = {
 }
 
 if window.location.search {
-  let newQ = window.location.search  |> string.replace ("?q=", "");
+  let newQ = window.location.search  |> string.replace "?q=","";
   ();
 };
 
@@ -66,12 +66,12 @@ let parent =
       ]
     ];
 
-document.addEventListener "keyup",(fn x = {
+document.addEventListener "keyup",fn x = {
     if (x.code = "Enter") {
         onclick();
     };
     ();
-});
+};
 
 documentHelper.append documentHelper.body parent;
 
@@ -81,36 +81,36 @@ documentHelper.append documentHelper.body parent;
          if x.target.value = "google" {
             "c1"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
             "c2"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
             "c3"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
 
          };
          if x.target.value = "bing" {
             "c1"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
             "c2"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
             "c3"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
         };
         if x.target.value = "baidu" {
             "c1"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
             "c2"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:none");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
             "c3"
                 |> documentHelper.getElementById
-                |> documentHelper.setAttr ("style","border:none;width:100%;height:85vh;display:block");
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
         };
        };
 
@@ -118,3 +118,4 @@ if window.location.search {
   search newQ;
   ();
 };
+
