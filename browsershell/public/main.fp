@@ -13,7 +13,7 @@ let option = util.option;
 let search x = {
     [
         (string.concat "https://www.google.com/webhp?igu=1&q=" x),"c1";
-        (string.concat "https://www.google.com/webhp?igu=1&q=" x),"c2";
+        (string.concat "https://cn.bing.com/search?&q=" x),"c2";
         (string.concat "https://www.baidu.com/s?wd=" x),"c3"
     ] 
         |> list.each fn x,y = {
