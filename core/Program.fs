@@ -30,6 +30,7 @@ type Token =
     | SemiToken
     | CommaToken
     | PipeToken
+    | VirtualPipeToken
     | AndToken
     | VirtualCommaToken
     | OrToken
@@ -56,6 +57,7 @@ let isBinaryOpToken token =
         | AndToken
         | OrToken
         | PipeToken
+        | VirtualPipeToken
         | GteToken
         | LtToken
         | LteToken
@@ -1016,14 +1018,15 @@ let addGlobalObject x y =
 let maxLevel = 10
 let getLevelByToken token =
     match token with
-        | VirtualCommaToken -> 8
-        | GtToken | LtToken | GteToken | LteToken | BindToken -> 6
-        | AddToken -> 6
-        | SubToken -> 5
-        | MulToken -> 4
-        | DiviToken -> 4
-        | AndToken | OrToken -> 3
-        | PipeToken -> 2
+        | VirtualCommaToken -> 9
+        | GtToken | LtToken | GteToken | LteToken | BindToken -> 7
+        | AddToken -> 7
+        | SubToken -> 6
+        | MulToken -> 5
+        | DiviToken -> 5
+        | AndToken | OrToken -> 4
+        | PipeToken -> 3
+        | VirtualPipeToken -> 2
         | CommaToken -> 1
         | DotToken -> 0
         | _ ->
@@ -1220,7 +1223,7 @@ let getObjectByToken token: Op list =
 
 let getOpByToken token =
     match token with
-        | PipeToken -> Call
+        | PipeToken | VirtualPipeToken -> Call
         | CommaToken | VirtualCommaToken -> Zip
         | MulToken  -> Mul
         | AddToken -> Add
@@ -1405,7 +1408,7 @@ module rec Parser =
                         unstruct k
                 | _ ->
                     raise (Exception "")
-        let ret2 = sort (sort ls 0) 1
+        let ret2 = sort (sort (sort ls 0) 1) 2
         let sorted = (sortAll (joinCall(ret2)) 2)
         if sorted.Length = 0 then
             []
@@ -1509,7 +1512,7 @@ module rec Parser =
                         ops
         let ops = parse ()
        
-        ops @ [Token PipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
+        ops @ [Token VirtualPipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
 
     let parseExpressionNewArray (parseState: ParseState) =
         let rec parse () =
