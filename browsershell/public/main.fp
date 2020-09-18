@@ -1,14 +1,4 @@
-let util = import "./util.fp";
-
-let log = util.log;
-let alert = util.alert;
-let div = util.div;
-let span = util.span;
-let input = util.input;
-let button = util.button;
-let iframe = util.iframe;
-let select = util.select;
-let option = util.option;
+let log,alert,div,span,input,button,iframe,select,option = import "./util.fp";
 
 let search x = {
     [
