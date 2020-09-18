@@ -106,6 +106,7 @@ type Op =
     | JumpIfFalse of int
     | Jump of int
     | Store of String
+    | Unstruct of string list
     | Call
     | Zip
     | Function of Op list * string list
@@ -390,6 +391,25 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                     | Store x ->
                         scope.Add(x, (stack.Pop()))
                         1
+                    | Unstruct nameList ->
+                        let target = stack.Pop()
+                        match target.Type with
+                            | ObjectCategory.FpHashObject ->
+                                let hashTarget = target :?> FpHashObject
+                                for name in nameList do
+                                    scope.Add(name, hashTarget.Get(name))
+                            | ObjectCategory.FpListObject ->
+                                let listTarget = target :?> FpListObject
+                                for index=0 to nameList.Length - 1 do
+                                    scope.Add(nameList.[index], listTarget.Get(index.ToString()))
+                            | ObjectCategory.FpTupleObject ->
+                                let listTarget = target :?> FpTupleObject
+                                for index=0 to nameList.Length - 1 do
+                                    scope.Add(nameList.[index], listTarget.Get(index.ToString()))
+                            | _ ->
+                                raise (Exception "只有hash,list,tuple支持解构")
+                        1
+
                     | Call ->
                         let f = stack.Pop() :?> IFpCallable
                         let p = stack.Pop()
@@ -1311,11 +1331,33 @@ module rec Parser =
         parseState.moveNext() |> ignore
         ret
 
+    let parseUnstruct (parseState: ParseState) =
+        let rec parse (demandComma) =
+            let token = parseState.nextToken
+            if demandComma then
+                match token with
+                    | CommaToken ->
+                        parseState.moveNext() |> ignore
+                        parse false
+                    | _ -> []
+            else
+                match token with
+                    | IdenToken x->
+                        parseState.moveNext() |> ignore
+                        [x] @ (parse true)
+                    | _ ->
+                        raise (Exception "解构必须是合法名称")
+        parse true
+
     let parseBindStatement (parseState: ParseState) =
         parseState.moveNext() |> ignore
         match parseState.moveNext() with
             | IdenToken name ->
                 match parseState.nextToken with
+                    | CommaToken ->
+                        let nameList = [name] @ (parseUnstruct parseState)
+                        parseState.moveNext() |> ignore
+                        (parseExpression parseState) @ [Unstruct nameList]
                     | BindToken ->
                         parseState.moveNext() |> ignore
                         (parseExpression parseState) @ [Store name]
