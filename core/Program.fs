@@ -507,6 +507,15 @@ type PrintFunction () =
         member this.Type = ObjectCategory.FpFunctionObject
         member this.IsTrue with get() = true
 
+type IgnoreFunction () =
+    interface IFpCallable with
+        member this.Call(args: IFpObject list): IFpObject =
+            upcast FpTupleObject()
+
+    interface IFpObject with
+        member this.Type = ObjectCategory.FpFunctionObject
+        member this.IsTrue with get() = true
+
 type NotFunction () =
     interface IFpCallable with
         member this.Call(args: IFpObject list): IFpObject =
@@ -1340,7 +1349,8 @@ module rec Parser =
                     @ [Jump (opsElseBlock.Length + 1)]
                     @ opsElseBlock
                 | _ ->
-                    ops @ [JumpIfFalse (opsBlock.Length + 1)] @ opsBlock
+                    ops @ [JumpIfFalse (opsBlock.Length + 2)] @ opsBlock  @ [Jump 2; LoadConst (FpTupleObject())]
+
 
     let sortExpressionBinary (ls: OpOrToken list): Op list =
         let rec joinCall (ls: OpOrToken list) =
@@ -1604,6 +1614,7 @@ module rec Parser =
 module Vm =
     let init () =
         globalScope.Add("print", PrintFunction())
+        globalScope.Add("ignore", IgnoreFunction())
         globalScope.Add("typeof", TypeOfFunction())
         globalScope.Add("list", ListObject())
         globalScope.Add("dict", HashObject())
@@ -1615,6 +1626,5 @@ module Vm =
         globalScope.Add("true", FpBooleanObject(true))
         globalScope.Add("false", FpBooleanObject(false))
 
-    let eval (f:IFpCallable) =
-        f.Call []
+    let eval (f:IFpCallable) = f.Call []
 
