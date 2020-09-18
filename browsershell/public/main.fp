@@ -37,7 +37,7 @@ let getQuery () = {
 // });
 
 let initDom () = {
-    let Comment = comment();
+    // let Comment = comment();
     let parent =
         div {} [
           div {
