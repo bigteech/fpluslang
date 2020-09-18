@@ -90,6 +90,22 @@ type DocumentObject () =
         base.Set("getElementsByClassName", DocumentObject.GetElementByClassName)
         base.Set("getElementsByTagName", DocumentObject.GetElementByTagName)
         base.Set("body", DocumentObject.Body)
+        base.Set("replaceWith", DocumentObject.replaceWith)
+
+    static member replaceWith = 
+        {
+              new IFpCallable with
+                  member this.Type = ObjectCategory.FpFunctionObject
+                  member this.IsTrue with get() = true
+                  member this.Call (element: IFpObject list) =
+                      let el = element.[0] :?> Main.JSObject
+                      let el2 = element.[1] :?> Main.JSObject
+                      let p = el.GetRawObj()
+                      let p2 = el2.GetRawObj()
+                      p?replaceWith p2
+                      FpNullObject() :> IFpObject
+         } :> IFpObject
+
     static member GetProp = 
         (fun () ->
             let fn (key : IFpObject list) = 

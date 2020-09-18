@@ -776,7 +776,21 @@ type HashObject () =
         base.Set("values", HashObject.Values)
         base.Set("count", HashObject.Count)
         base.Set("contain", HashObject.ContainsKey)
-   
+        base.Set("effectUpdate", HashObject.EffectUpdate)
+
+    static member EffectUpdate =
+        {
+            new IFpCallable with
+                member this.Type = ObjectCategory.FpFunctionObject
+                member this.IsTrue with get() = true
+                member this.Call (p: IFpObject list) =
+                    let h1 = p.[0] :?> IFpHashable
+                    let h2 = p.[1] :?> FpHashObject
+                    for x in h2.Keys() do
+                      h1.Set  (x,h2.Get(x))
+                    (FpNullObject()) :> IFpObject
+        } :> IFpObject
+
     static member ContainsKey =
         (fun () -> 
             let fn (f : IFpObject list) =
@@ -1193,8 +1207,8 @@ module Lexical =
                   | '<' ->
                       if text.[index+1] = '=' then
                         LteToken, (index+2)
-                    //   elif text.[index+1] = '-' then
-                    //     AssignToken, (index+2)
+                      // elif text.[index+1] = '-' then
+                      //   AssignToken, (index+2)
                       else
                         LtToken, (index+1)
                   | '.' ->

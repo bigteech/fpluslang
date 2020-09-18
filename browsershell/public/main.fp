@@ -1,4 +1,4 @@
-let log,alert,div,span,input,button,iframe,select,option = import "./util.fp";
+let log,alert,div,span,input,button,iframe,select,option,view = import "./util.fp";
 
 let search x = {
     [
@@ -28,7 +28,16 @@ let getQuery () = {
     };
 }
 
+let comment = view (fn props,state,helper = {
+    let a = if state.a {state.a;} else {"www";};
+    button {
+      "onclick", fn x = {helper.setState {"a", "1"};};
+      "id","hello"
+   } [a];
+});
+
 let initDom () = {
+    let Comment = comment();
     let parent =
         div {} [
           div {
@@ -47,6 +56,7 @@ let initDom () = {
                     option {"value","bing"} ["bing"];
                     option {"value", "baidu"} ["百度"]
                   ]
+          //        Comment {}
               ];
           div {"style","display:inline-block;width:100%;margin-top:5rem"} [
             iframe {"id","c1";"style","border:none;width:100%;height:85vh"} []
