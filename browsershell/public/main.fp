@@ -82,42 +82,24 @@ let initEvent () = {
   "selecter"
       |> documentHelper.getElementById
       |> documentHelper.addListener "change",fn x = {
-          if x.target.value = "google" {
-              "c1"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
-              "c2"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-              "c3"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-
-          };
-          if x.target.value = "bing" {
-              "c1"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-              "c2"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
-              "c3"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-          };
-          if x.target.value = "baidu" {
-              "c1"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-              "c2"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-              "c3"
-                  |> documentHelper.getElementById
-                  |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
-          };
+          {
+            "google",("c1", ["c2";"c3"]);
+            "bing",("c2", ["c1";"c3"]);
+            "baidu",("c3", ["c2";"c1"])
+          }.(x.target.value)
+          |> fn v1,v2 = {
+                v1
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
+                v2
+                |> list.each fn x = {
+                   x
+                   |> documentHelper.getElementById
+                   |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
+                };
+           };
         }
-      |> ignore;
+       |> ignore;
 }
 
 let autoSearch () = {
