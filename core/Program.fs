@@ -264,6 +264,20 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
 
     member this.OpList with get() = oplst
     member this.PushToOpList(p) = oplst <- (oplst @ p);
+    static member Add (f1: IFpCallable, f2: IFpCallable) =
+        {
+            new IFpCallable with
+                member this.Call(args: IFpObject list): IFpObject =
+                    let x = f1.Call args;
+                    upcast (if x.Type = ObjectCategory.FpTupleObject then
+                        f2.Call (x :?> FpTupleObject).Values
+                    else
+                        f2.Call [x])
+                member this.Type = ObjectCategory.FpFunctionObject
+                member this.IsTrue with get() = true
+        } :> IFpObject
+
+
 
     interface IFpObject with
         member this.Type = ObjectCategory.FpFunctionObject
@@ -288,7 +302,6 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                         x
                     | _ ->
                         globalScope.[name]
-               
             let eval op =
                 match op with
                     | LoadConst x ->
@@ -306,6 +319,9 @@ type FpFunctionObject(argsNames: string list, getClosureVar: string -> IFpObject
                                 FpListObject.Add(l2 :?> FpListObject, l1 :?> FpListObject) :> IFpObject
                             | ObjectCategory.FpHashObject ->
                                 FpHashObject.Add(l2 :?> FpHashObject, l1 :?> FpHashObject) :> IFpObject
+                            | ObjectCategory.FpFunctionObject ->
+                                FpFunctionObject.Add(l2 :?> FpFunctionObject, l1 :?> FpFunctionObject) :> IFpObject
+
                         |>  stack.Push
                         1
                     | Sub ->

@@ -126,9 +126,6 @@ let autoSearch () = {
   } |> ignore;
 }
 
-let start () = {
-    initDom();
-    initEvent();
-    autoSearch() |> ignore;
-}
+let start = initDom + initEvent + autoSearch;
+
 start() |> ignore;
