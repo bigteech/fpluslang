@@ -2,110 +2,111 @@
 顾形思义，F#的精简版，是本人在2019-nCoV的时候无聊搞的一种船新的语言，全名Fpluslang。
 语法糖简单优美深得我心。
 ```f#
-// 函数声明
-let createdict k,v,m,n = {
-    // 字典
-    {k,v;m,n};
+// 元组，列表，字典解构，模块导入
+let log,alert,div,span,input,button,iframe,select,option = import "./util.fp";
+
+// 函数声明，管道调用，元组声明
+let search x = {
+    [
+        (string.concat "https://www.google.com/webhp?igu=1&q=" x),"c1";
+        (string.concat "https://cn.bing.com/search?&q=" x),"c2";
+        (string.concat "https://www.baidu.com/s?wd=" x),"c3"
+    ]
+        |> list.each fn x,y = {
+              y |> documentHelper.getElementById |> documentHelper.setAttr "src",x;
+          }
+        |> ignore;
 }
 
-// 函数调用
-let mydict = createdict "a","2","b","4";
-
-// 管道调用
-mydict.a |> print;
-
-// lambda表达式与管道
-mydict.b,mydict.a
-    |> fn x,y = { x + " i am lambda exp " + y; }
-    |> print;
-
-let dict2 = {"m",1;"n",2};
-dict2.m |> print;
-dict2.n |> print;
-
-let readfile path = {
-    let p = ["read", "read2"];
-    path |> file.[p.["0"]] |> print;
-    p.["1"] |> print;
-    path |> file.[p.["0"]];
-}
-
-readfile "./test.txt" |> print;
-
-let v = readfile "./test.txt";
-
-if v {
-   print v;
-} else {
-   print 2,(4+1),4;
-};
-
-
-let hf text = {
-    let m = if 0 {
-        "1";
-    } else {
-        "2";
-    };
-    m;
-}
-
-let hf2 x = {
-    fn k = {
-        k + "hf2";
-    };
-}
-
-
-// 连续调用
-
-hf2 hf "test hf" |> print;
-
-
-// 没参数的函数
-let hf3 () = {
-    print "
-        空方法
-    ";
-}
-
-hf3 ();
-
-// tuple 元组参数自动解构
-
-print 1,2,(1,2),1;
-```
-## 浏览器上运行
-```f#
-
-let onclick x = {
-    "searchInput"
+let onclick () = {
+    "searchinput"
         |> documentHelper.getElementById
         |> documentHelper.getProp "value"
-        |> string.concat "https://www.baidu.com/s?wd="
-        |> windowHelper.goto;
+        |> search
+        |> ignore;
 }
-    
-let Div = documentHelper.createElement "div";
-let Span = documentHelper.createElement "span";
-let Input = documentHelper.createElement "input";
-let Button = documentHelper.createElement "button";
-let parent = 
-    Div {"style","margin-top:10rem;display: flex;justify-content: center;align-items: center;"} [
-        Input {"id","searchInput";"style","outline:none;font-size:larger;width: 35rem;height: 2rem;border-radius: 0.3rem;border: 1px solid #c5c1c1;"} [];
-        Button {"style","outline:none;height: 2rem;margin-left: 1rem;border-radius: 0.2rem;";"onclick",onclick} ["搜索"]
-    ];
 
-document.addEventListener "keyup",(fn x = {
-    if (x.code = "Enter") {
-        "searchInput"
-            |> documentHelper.getElementById
-            |> documentHelper.getProp "value"
-            |> string.concat "https://www.baidu.com/s?wd="
-            |> windowHelper.goto;
+//  if表达式
+let getQuery () = {
+    if window.location.search {
+        window.location.search  |> string.replace "?q=","";
+    } else {
+        "";
     };
-    ();
-});
-documentHelper.append documentHelper.body parent;
+}
+
+let initDom () = {
+    let parent =
+        div {} [
+          div {
+                  "style","position:fixed;width:100%;box-shadow:0 2px 8px #f0f1f2;padding-bottom:1rem;padding-top:1rem;display: flex;justify-content: center;align-items: center;position: fixed;width: 100%;"
+              } [
+                  input {
+                      "id","searchinput";
+                      "value", if window.location.search {getQuery();} else {"";}
+                  } [];
+                  select {"id", "selecter"; "style", "
+                      height: 36px;
+                      margin-right: 5px;
+                      margin-left: 10px;
+                  "} [
+                    option {"value", "google"} ["google"];
+                    option {"value","bing"} ["bing"];
+                    option {"value", "baidu"} ["百度"]
+                  ]
+              ];
+          div {"style","display:inline-block;width:100%;margin-top:5rem"} [
+            iframe {"id","c1";"style","border:none;width:100%;height:85vh"} []
+          ];
+          div {"style","display:inline-block;width:100%;"} [
+            iframe {"id","c2";"style","border:none;width:100%;height:85vh;display:none"} []
+          ];
+          div {"style","display:inline-block;width:100%;"} [
+            iframe {"id","c3";"style","border:none;width:100%;height:85vh;display:none"} []
+          ]
+        ];
+
+    documentHelper.append documentHelper.body parent |> ignore;
+}
+
+//  lambda表达式,元组参数自动解构
+let initEvent () = {
+    document.addEventListener "keyup",fn x = {
+        if x.code = "Enter" {
+            onclick();
+        } |> ignore;
+    };
+  "selecter"
+      |> documentHelper.getElementById
+      |> documentHelper.addListener "change",fn x = {
+          {
+            "google",("c1", ["c2";"c3"]);
+            "bing",("c2", ["c1";"c3"]);
+            "baidu",("c3", ["c2";"c1"])
+          }.(x.target.value)
+          |> fn v1,v2 = {
+                v1
+                |> documentHelper.getElementById
+                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
+                v2
+                |> list.each fn x = {
+                   x
+                   |> documentHelper.getElementById
+                   |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
+                };
+           };
+        }
+       |> ignore;
+}
+
+let autoSearch () = {
+  if window.location.search {
+    getQuery() |> search;
+  } |> ignore;
+}
+// 函数组合
+let start = initDom + initEvent + autoSearch;
+
+start() |> ignore;
 ```
 <img src="./browser.png">
