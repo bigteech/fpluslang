@@ -28,5 +28,5 @@ let view domGen = {
   ] |> list.map fn x = {
           x,(documentHelper.createElement x);
       }
-    + ["log",log;"alert",alert;"view",view]
+    + ["log",log;"alert",alert;"toView",view]
 };
