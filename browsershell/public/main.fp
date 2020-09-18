@@ -76,8 +76,7 @@ let initEvent () = {
     document.addEventListener "keyup",fn x = {
         if x.code = "Enter" {
             onclick();
-        };
-        ();
+        } |> ignore;
     };
   "selecter"
       |> documentHelper.getElementById
@@ -104,7 +103,7 @@ let initEvent () = {
 
 let autoSearch () = {
   if window.location.search {
-    search (getQuery());
+    getQuery() |> search;
   } |> ignore;
 }
 
