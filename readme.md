@@ -106,7 +106,7 @@ let view domGen = {
    createElement ret;
 };
 
-// 模块导出，最后一个表达式为导出对象
+// module exports
 {
   (rawComponent |> list.map fn obj,index = {
     let x,y = obj;
