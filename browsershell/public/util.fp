@@ -81,7 +81,14 @@ let view domGen = {
                   ret;
                } else {
                   let pubRender,privateState = z.component();
-                  let ret = pubRender (z.props),(z.children);
+                  let realChildren = z.children |> list.map (fn child,idx = {
+                     if (typeof child) = "string" {
+                       child;
+                     } else {
+                       diffAndUpdate x,idx,child;
+                     };
+                  });
+                  let ret = pubRender (z.props),(realChildren);
                   dict.effectUpdate renderMap,{(string.from x + string.from y),{"component", (z.component);"render", pubRender}};
                   ret;
                };
