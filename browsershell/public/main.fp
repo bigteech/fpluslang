@@ -28,18 +28,34 @@ let getQuery () = {
     };
 }
 
-// let comment = toView (fn props,state,helper = {
-//     let a = if state.a {state.a;} else {"www";};
-//     button {
-//       "onclick", fn x = {helper.setState {"a", "1"};};
-//       "id","hello"
-//    } [a];
-// });
-
 let Main = toView (fn props,state,helper = {
-  let t = if state.m {state.m;} else {"sssssssss";};
-  div {"style","stylem"; "onclick", fn () = {helper.setState {"m", "11111111"};}} [
-    t
+  div {} [
+    div {
+            "style","position:fixed;width:100%;box-shadow:0 2px 8px #f0f1f2;padding-bottom:1rem;padding-top:1rem;display: flex;justify-content: center;align-items: center;position: fixed;width: 100%;"
+        } [
+            input {
+                "id","searchinput";
+                "value", if window.location.search {getQuery();} else {"";}
+            } [];
+            select {"id", "selecter"; "style", "
+                height: 36px;
+                margin-right: 5px;
+                margin-left: 10px;
+            "} [
+              option {"value", "google"} ["google"];
+              option {"value","bing"} ["bing"];
+              option {"value", "baidu"} ["百度"]
+            ]
+        ];
+    div {"style","display:inline-block;width:100%;margin-top:5rem"} [
+      iframe {"id","c1";"style","border:none;width:100%;height:85vh"} []
+    ];
+    div {"style","display:inline-block;width:100%;"} [
+      iframe {"id","c2";"style","border:none;width:100%;height:85vh;display:none"} []
+    ];
+    div {"style","display:inline-block;width:100%;"} [
+      iframe {"id","c3";"style","border:none;width:100%;height:85vh;display:none"} []
+    ]
   ];
 });
 
@@ -82,6 +98,6 @@ let autoSearch () = {
   } |> ignore;
 }
 
-let start = initDom;
+let start = initDom + initEvent + autoSearch;
 
 start() |> ignore;
