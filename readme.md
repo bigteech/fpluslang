@@ -1,6 +1,5 @@
 # F+ 
-顾形思义，F#的精简版，是本人在2019-nCoV的时候无聊搞的一种船新的语言，全名Fpluslang。
-语法糖简单优美深得我心。
+A F# like functional dynamic programming language;
 ```f#
 // file: util.fp
 // react like library
