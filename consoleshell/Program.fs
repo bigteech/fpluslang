@@ -2,7 +2,7 @@
 
 open System
 open Fp
-
+open Types
 
 type ReadFunction () =
     interface IFpCallable with 

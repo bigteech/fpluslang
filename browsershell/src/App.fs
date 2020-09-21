@@ -4,6 +4,7 @@ open Fable.Core.JsInterop
 open Fetch
 open Fable.Import
 open Fp
+open Types
 open Fable.Core.Util
 open Fable.Core
 
@@ -34,8 +35,6 @@ module rec Main =
                 toAny (kvs)
             | ObjectCategory.FpStringObject ->
                 toAny ((p :?> FpStringObject).Value)
-            | ObjectCategory.FpNullObject ->
-                toAny (null)
             | ObjectCategory.FpNumberObject ->
                 toAny ((p :?> FpNumberObject).Value)
             | ObjectCategory.FpBooleanObject ->
@@ -70,7 +69,7 @@ module rec Main =
                         } :> IFpObject
                         
                     | _ -> 
-                        FpNullObject() :> IFpObject
+                        FpTupleObject.Empty() :> IFpObject
             member this.Set m =
                 raise (Exception "不能改变内置对象")
         interface IFpObject with 
@@ -103,7 +102,7 @@ type DocumentObject () =
                       let p = el.GetRawObj()
                       let p2 = el2.GetRawObj()
                       p?replaceWith p2
-                      FpNullObject() :> IFpObject
+                      FpTupleObject.Empty() :> IFpObject
          } :> IFpObject
 
     static member GetProp = 
@@ -141,7 +140,7 @@ type DocumentObject () =
                             let k = (key.[0] :?> FpStringObject).Value
                             let v = (key.[1] :?> FpStringObject).Value
                             p.setAttribute (k,v)
-                            FpNullObject() :> IFpObject
+                            FpTupleObject.Empty() :> IFpObject
                 } :> IFpObject
             (
                 {
@@ -228,7 +227,7 @@ type DocumentObject () =
                             p.addEventListener(name, (fun y -> 
                                 fnv.Call ([Main.JSObject(y)]) |> ignore
                             ))
-                            FpNullObject() :> IFpObject
+                            FpTupleObject.Empty() :> IFpObject
                 } :> IFpObject
             (
                 {
@@ -267,7 +266,7 @@ type DocumentObject () =
                             let p = f1.GetRawObj() :?> Browser.Types.Element
                             let chil = ((child.[0] :?> Main.JSObject).GetRawObj()):?> Browser.Types.Element
                             p.appendChild chil |> ignore
-                            FpNullObject() :> IFpObject
+                            FpTupleObject.Empty() :> IFpObject
                 } :> IFpObject
             (
                 {
@@ -341,7 +340,7 @@ type WindowObject () =
                     member x.Call (p: IFpObject list) = 
                         let url = (p.[0] :?> FpStringObject).Value
                         Browser.Dom.window.``open`` url |> ignore
-                        FpNullObject() :> IFpObject
+                        FpTupleObject.Empty() :> IFpObject
             }
         ) :> IFpObject
 
