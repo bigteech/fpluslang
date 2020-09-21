@@ -118,10 +118,10 @@ let view domGen = {
 ```
 ```f#
 // file: main.fp
-// 模块引用
+// module ref
 let log,alert,div,span,input,button,iframe,select,option,toView,domRender = import "./util.fp";
 
-// 函数声明，lambda表达式
+// function and lambda
 let search x = {
     [
         (string.concat "https://www.google.com/webhp?igu=1&q=" x),"c1";
@@ -134,7 +134,7 @@ let search x = {
         |> ignore;
 }
 
-// 管道调用
+// pipe call
 let onclick () = {
     "searchinput"
         |> documentHelper.getElementById
@@ -151,7 +151,7 @@ let getQuery () = {
     };
 }
 
-// 声明一个React like组件
+// declare React like component
 let TopBox = toView fn props,state,helper = {
     div {
             "style","position:fixed;width:100%;box-shadow:0 2px 8px #f0f1f2;padding-bottom:1rem;padding-top:1rem;display: flex;justify-content: center;align-items: center;position: fixed;width: 100%;"
@@ -168,7 +168,7 @@ let TopBox = toView fn props,state,helper = {
         ];
 };
 
-// 组建引用
+// component ref
 let Main = toView fn props,state,helper = {
   div {} [
     TopBox {"options",[("google","谷歌");("bing","Bing");("baidu","百度")]} [];
@@ -223,7 +223,7 @@ let autoSearch () = {
   } |> ignore;
 }
 
-// 函数组合
+// function compose
 let start = initDom + initEvent + autoSearch;
 
 start() |> ignore;
