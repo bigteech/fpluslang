@@ -960,7 +960,7 @@ module rec Parser =
     let parseIfExpression (parseState: ParseState) =
         let rec loop demandOp =
             if demandOp && (isBinaryOpToken parseState.nextToken) then
-                let ops = parseExpressionBinaryNode parseState false
+                let ops = parseExpressionBinaryNode parseState maxLevel
                 if ops.Length = 0 then
                     ops
                 else
@@ -968,7 +968,7 @@ module rec Parser =
             elif demandOp then
                 []
             else
-                let ops = parseExpressionBinaryNode parseState false
+                let ops = parseExpressionBinaryNode parseState maxLevel
                 if ops.Length = 0 then
                     ops
                 else
@@ -1068,7 +1068,7 @@ module rec Parser =
             unstruct (sorted.[0])
             ret |> List.ofSeq
 
-    let parseExpressionBinaryNode (parseState: ParseState) (ignoreOp: bool)  : OpOrToken list =
+    let parseExpressionBinaryNode (parseState: ParseState) (limitLevel: int)  : OpOrToken list =
         let token = parseState.nextToken
         match token with
             | CommaToken ->
@@ -1125,7 +1125,7 @@ module rec Parser =
                         [Token DotToken; Op [LoadConst (FpStringObject (x.ToString()))]]
                     | _ ->
                         [Token DotToken]
-            | a when (isBinaryOpToken a) && (not ignoreOp) ->
+            | a when (isBinaryOpToken a) && ((getLevelByToken a) < limitLevel) ->
                 parseState.moveNext() |> ignore
                 [Token a]
             | _ ->
@@ -1133,11 +1133,20 @@ module rec Parser =
 
     let parseExpressionBinary (parseState: ParseState) : OpOrToken list =
         let rec loop () =
-            let ops = parseExpressionBinaryNode parseState false
+            let ops = parseExpressionBinaryNode parseState maxLevel
             if ops.Length = 0 then
                 ops
             else
                 ops @ loop()
+        loop()
+
+    let parseExpressionBinaryWithLimit (parseState: ParseState) (limitLevel: int) : OpOrToken list =
+        let rec loop () =
+            let ops = parseExpressionBinaryNode parseState limitLevel
+            if ops.Length = 0 then
+              ops
+            else
+              ops @ loop()
         loop()
 
     let parseExpressionBinaryChild (parseState: ParseState) =
@@ -1152,7 +1161,7 @@ module rec Parser =
 
     let parseExpressionTuple (parseState: ParseState) =
         let rec parse  ()=
-            let ops =  parseExpressionBinaryNode parseState true
+            let ops =  parseExpressionBinaryWithLimit parseState 1
 
             if ops.Length = 0 then
                 ops
@@ -1165,7 +1174,6 @@ module rec Parser =
                     | _ ->
                         ops
         let ops = parse ()
-       
         ops @ [Token VirtualPipeToken] @ [Op [LoadVar "tuple"; LoadConst (FpStringObject "create"); Get]]
 
     let parseExpressionNewArray (parseState: ParseState) =

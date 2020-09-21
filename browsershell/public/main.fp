@@ -40,7 +40,7 @@ let TopBox = toView (fn props,state,helper = {
                 height: 36px;
                 margin-right: 5px;
                 margin-left: 10px;
-            "} (props.options |> list.map fn x,y = {option {"value",(x.0)} [x.1];})
+            "} (props.options |> list.map fn x,y = {option {"value",x.0} [x.1];})
             
         ];
 });
