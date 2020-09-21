@@ -28,7 +28,7 @@ let getQuery () = {
     };
 }
 
-let TopBox = toView (fn props,state,helper = {
+let TopBox = toView fn props,state,helper = {
     div {
             "style","position:fixed;width:100%;box-shadow:0 2px 8px #f0f1f2;padding-bottom:1rem;padding-top:1rem;display: flex;justify-content: center;align-items: center;position: fixed;width: 100%;"
         } [
@@ -41,11 +41,10 @@ let TopBox = toView (fn props,state,helper = {
                 margin-right: 5px;
                 margin-left: 10px;
             "} (props.options |> list.map fn x,y = {option {"value",x.0} [x.1];})
-            
         ];
-});
+};
 
-let Main = toView (fn props,state,helper = {
+let Main = toView fn props,state,helper = {
   div {} [
     TopBox {"options",[("google","谷歌");("bing","Bing");("baidu","百度")]} [];
     div {"style","display:inline-block;width:100%;margin-top:5rem"} [
@@ -58,7 +57,7 @@ let Main = toView (fn props,state,helper = {
       iframe {"id","c3";"style","border:none;width:100%;height:85vh;display:none"} []
     ]
   ];
-});
+};
 
 let initDom () = {
   domRender (documentHelper.body,(Main {} []));

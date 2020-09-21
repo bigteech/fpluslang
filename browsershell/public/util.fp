@@ -38,7 +38,7 @@ let unstruct param = {
 let domRender dom,com = {
   let component,props,children = com;
   let publicRender,privateState = component();
-  let ret = unstruct(publicRender (props,children));
+  let ret = unstruct(publicRender props,children);
   documentHelper.append dom ret;
   dict.effectUpdate privateState,{"dom",ret};
 }
@@ -70,26 +70,26 @@ let view domGen = {
             } else {
                let cache = renderMap.(string.from x + string.from y);
                if cache.component = z.component  {
-                  let realChildren = z.children |> list.map (fn child,idx = {
+                  let realChildren = z.children |> list.map fn child,idx = {
                      if (typeof child) = "string" {
                        child;
                      } else {
                        diffAndUpdate x,idx,child;
                      };
-                  });
+                  };
                   let ret = cache.render (z.props,realChildren);
                   ret;
                } else {
                   let pubRender,privateState = z.component();
-                  let realChildren = z.children |> list.map (fn child,idx = {
+                  let realChildren = z.children |> list.map fn child,idx = {
                      if (typeof child) = "string" {
                        child;
                      } else {
                        diffAndUpdate x,idx,child;
                      };
-                  });
-                  let ret = pubRender (z.props),(realChildren);
-                  dict.effectUpdate renderMap,{(string.from x + string.from y),{"component", (z.component);"render", pubRender}};
+                  };
+                  let ret = pubRender z.props,realChildren;
+                  dict.effectUpdate renderMap,{(string.from x + string.from y),{"component", z.component;"render", pubRender}};
                   ret;
                };
             };
@@ -104,8 +104,8 @@ let view domGen = {
 {
   (rawComponent |> list.map fn obj,index = {
     let x,y = obj;
-    x,(view (fn props = {
+    x,(view fn props = {
       createElement y props props.children;
-    }));
+    });
   }) + ["log",log;"alert",alert;"toView",view; "domRender",domRender]
 };
