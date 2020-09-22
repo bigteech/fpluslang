@@ -296,8 +296,8 @@ type DocumentObject () =
                                     ()
                                 else
                                     match x with
-                                        | "onclick" -> 
-                                            el.addEventListener("click", (fun y -> 
+                                        | a when a.StartsWith "on" -> 
+                                            el.addEventListener(a.Substring(2, a.Length-2), (fun y -> 
                                                 let onclick = f2.Get(x) :?> IFpCallable
                                                 onclick.Call ([Main.JSObject(y)]) |> ignore
                                             ))

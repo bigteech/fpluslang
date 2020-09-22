@@ -40,7 +40,26 @@ let TopBox = toView fn props,state,helper = {
                 height: 36px;
                 margin-right: 5px;
                 margin-left: 10px;
-            "} (props.options |> list.map fn x,y = {option {"value",x.0} [x.1];})
+            ";
+            "onchange", fn x = {
+                  {
+                    "google",("c1", ["c2";"c3"]);
+                    "bing",("c2", ["c1";"c3"]);
+                    "baidu",("c3", ["c2";"c1"])
+                  }.(x.target.value)
+                  |> fn v1,v2 = {
+                        v1
+                        |> documentHelper.getElementById
+                        |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
+                        v2
+                        |> list.each fn x = {
+                          x
+                          |> documentHelper.getElementById
+                          |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
+                        };
+                  };
+            }
+            } (props.options |> list.map fn x,y = {option {"value",x.0} [x.1];})
         ];
 };
 
@@ -69,27 +88,6 @@ let initEvent () = {
             onclick();
         } |> ignore;
     };
-  "selecter"
-      |> documentHelper.getElementById
-      |> documentHelper.addListener "change",fn x = {
-          {
-            "google",("c1", ["c2";"c3"]);
-            "bing",("c2", ["c1";"c3"]);
-            "baidu",("c3", ["c2";"c1"])
-          }.(x.target.value)
-          |> fn v1,v2 = {
-                v1
-                |> documentHelper.getElementById
-                |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:block";
-                v2
-                |> list.each fn x = {
-                   x
-                   |> documentHelper.getElementById
-                   |> documentHelper.setAttr "style","border:none;width:100%;height:85vh;display:none";
-                };
-           };
-        }
-       |> ignore;
 }
 
 let autoSearch () = {
