@@ -12,14 +12,6 @@ let search x = {
         |> ignore;
 }
 
-let onclick () = {
-    "searchinput"
-        |> documentHelper.getElementById
-        |> documentHelper.getProp "value"
-        |> search
-        |> ignore;
-}
-
 let getQuery () = {
     if window.location.search {
         window.location.search  |> string.replace "?q=","";
@@ -85,17 +77,21 @@ let initDom () = {
 let initEvent () = {
     document.addEventListener "keyup",fn x = {
         if x.code = "Enter" {
-            onclick();
+            "searchinput"
+                |> documentHelper.getElementById
+                |> documentHelper.getProp "value"
+                |> search
+                |> ignore;
         } |> ignore;
     };
 }
 
-let autoSearch () = {
+let tryAutoSearch () = {
   if window.location.search {
     getQuery() |> search;
   } |> ignore;
 }
 
-let start = initDom + initEvent + autoSearch;
+let start = initDom + initEvent + tryAutoSearch;
 
 start() |> ignore;
